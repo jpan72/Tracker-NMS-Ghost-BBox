@@ -165,28 +165,22 @@ if __name__ == '__main__':
                     '''
         data_root = '/hdd/yongxinw/MOT17/MOT17/train'
     else:
-        # seqs_str = '''MOT16-01
-        #              MOT16-03
-        #              MOT16-06
-        #              MOT16-07
-        #              MOT16-08
-        #              MOT16-12
-        #              MOT16-14'''
-        # seqs_str = '''MOT17-01
-        #              MOT17-03
-        #              MOT17-06
-        #              MOT17-07
-        #              MOT17-08
-        #              MOT17-12
-        #              MOT17-14'''
-        seqs_str = '''MOT17-01-DPM
-                     MOT17-03-DPM
-                     MOT17-06-DPM
-                     MOT17-07-DPM
-                     MOT17-08-DPM
-                     MOT17-12-DPM
-                     MOT17-14-DPM'''
-        data_root = '/hdd/yongxinw/MOT17/MOT17/test'
+        seqs_str = '''MOT16-01
+                     MOT16-03
+                     MOT16-06
+                     MOT16-07
+                     MOT16-08
+                     MOT16-12
+                     MOT16-14'''
+        # seqs_str = '''MOT17-01-DPM
+        #              MOT17-03-DPM
+        #              MOT17-06-DPM
+        #              MOT17-07-DPM
+        #              MOT17-08-DPM
+        #              MOT17-12-DPM
+        #              MOT17-14-DPM'''
+        data_root = '/hdd/yongxinw/MOT16/test'
+        # data_root = '/hdd/yongxinw/MOT17/MOT17/test'
     seqs = [seq.strip() for seq in seqs_str.split()]
 
     main(opt,
