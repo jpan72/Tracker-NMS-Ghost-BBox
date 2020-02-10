@@ -10,7 +10,11 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torchvision.ops import nms
-#import maskrcnn_benchmark.layers.nms as nms
+import colorsys
+from PIL import Image, ImageDraw
+
+
+# import maskrcnn_benchmark.layers.nms as nms
 
 def mkdir_if_missing(d):
     if not osp.exists(d):
@@ -47,7 +51,6 @@ def model_info(model):  # Plots a line-by-line description of a PyTorch model
         print('%5g %50s %9s %12g %20s %12.3g %12.3g' % (
             i, name, p.requires_grad, p.numel(), list(p.shape), p.mean(), p.std()))
     print('Model Summary: %g layers, %g parameters, %g gradients\n' % (i + 1, n_p, n_g))
-
 
 
 def plot_one_box(x, img, color=None, label=None, line_thickness=None):  # Plots one bounding box on image img
@@ -213,8 +216,8 @@ def bbox_iou(box1, box2, x1y1x2y2=False):
     inter_area = torch.clamp(inter_rect_x2 - inter_rect_x1, 0) * torch.clamp(inter_rect_y2 - inter_rect_y1, 0)
     # Union Area
     b1_area = ((b1_x2 - b1_x1) * (b1_y2 - b1_y1))
-    b1_area = ((b1_x2 - b1_x1) * (b1_y2 - b1_y1)).view(-1,1).expand(N,M)
-    b2_area = ((b2_x2 - b2_x1) * (b2_y2 - b2_y1)).view(1,-1).expand(N,M)
+    b1_area = ((b1_x2 - b1_x1) * (b1_y2 - b1_y1)).view(-1, 1).expand(N, M)
+    b2_area = ((b2_x2 - b2_x1) * (b2_y2 - b2_y1)).view(1, -1).expand(N, M)
 
     return inter_area / (b1_area + b2_area - inter_area + 1e-16)
 
@@ -229,27 +232,27 @@ def build_targets_max(target, anchor_wh, nA, nC, nGh, nGw):
     twh = torch.zeros(nB, nA, nGh, nGw, 2).cuda()
     tconf = torch.LongTensor(nB, nA, nGh, nGw).fill_(0).cuda()
     tcls = torch.ByteTensor(nB, nA, nGh, nGw, nC).fill_(0).cuda()  # nC = number of classes
-    tid = torch.LongTensor(nB, nA, nGh, nGw, 1).fill_(-1).cuda() 
+    tid = torch.LongTensor(nB, nA, nGh, nGw, 1).fill_(-1).cuda()
     for b in range(nB):
         t = target[b]
         t_id = t[:, 1].clone().long().cuda()
-        t = t[:,[0,2,3,4,5]]
+        t = t[:, [0, 2, 3, 4, 5]]
         nTb = len(t)  # number of targets
         if nTb == 0:
             continue
 
-        #gxy, gwh = t[:, 1:3] * nG, t[:, 3:5] * nG
-        gxy, gwh = t[: , 1:3].clone() , t[:, 3:5].clone()
+        # gxy, gwh = t[:, 1:3] * nG, t[:, 3:5] * nG
+        gxy, gwh = t[:, 1:3].clone(), t[:, 3:5].clone()
         gxy[:, 0] = gxy[:, 0] * nGw
         gxy[:, 1] = gxy[:, 1] * nGh
         gwh[:, 0] = gwh[:, 0] * nGw
         gwh[:, 1] = gwh[:, 1] * nGh
-        gi = torch.clamp(gxy[:, 0], min=0, max=nGw -1).long()
-        gj = torch.clamp(gxy[:, 1], min=0, max=nGh -1).long()
+        gi = torch.clamp(gxy[:, 0], min=0, max=nGw - 1).long()
+        gj = torch.clamp(gxy[:, 1], min=0, max=nGh - 1).long()
 
         # Get grid box indices and prevent overflows (i.e. 13.01 on 13 anchors)
-        #gi, gj = torch.clamp(gxy.long(), min=0, max=nG - 1).t()
-        #gi, gj = gxy.long().t()
+        # gi, gj = torch.clamp(gxy.long(), min=0, max=nG - 1).t()
+        # gi, gj = gxy.long().t()
 
         # iou of targets-anchors (using wh only)
         box1 = gwh
@@ -281,7 +284,7 @@ def build_targets_max(target, anchor_wh, nA, nC, nGh, nGw):
         else:
             if iou_best < 0.60:
                 continue
-        
+
         tc, gxy, gwh = t[:, 0].long(), t[:, 1:3].clone(), t[:, 3:5].clone()
         gxy[:, 0] = gxy[:, 0] * nGw
         gxy[:, 1] = gxy[:, 1] * nGh
@@ -303,49 +306,48 @@ def build_targets_max(target, anchor_wh, nA, nC, nGh, nGw):
     return tconf, tbox, tid
 
 
-
 def build_targets_thres(target, anchor_wh, nA, nC, nGh, nGw):
     ID_THRESH = 0.5
     FG_THRESH = 0.5
     BG_THRESH = 0.4
     nB = len(target)  # number of images in batch
-    assert(len(anchor_wh)==nA)
+    assert (len(anchor_wh) == nA)
 
     tbox = torch.zeros(nB, nA, nGh, nGw, 4).cuda()  # batch size, anchors, grid size
     tconf = torch.LongTensor(nB, nA, nGh, nGw).fill_(0).cuda()
-    tid = torch.LongTensor(nB, nA, nGh, nGw, 1).fill_(-1).cuda() 
+    tid = torch.LongTensor(nB, nA, nGh, nGw, 1).fill_(-1).cuda()
     for b in range(nB):
         t = target[b]
         t_id = t[:, 1].clone().long().cuda()
-        t = t[:,[0,2,3,4,5]]
+        t = t[:, [0, 2, 3, 4, 5]]
         nTb = len(t)  # number of targets
         if nTb == 0:
             continue
 
-        gxy, gwh = t[: , 1:3].clone() , t[:, 3:5].clone()
+        gxy, gwh = t[:, 1:3].clone(), t[:, 3:5].clone()
         gxy[:, 0] = gxy[:, 0] * nGw
         gxy[:, 1] = gxy[:, 1] * nGh
         gwh[:, 0] = gwh[:, 0] * nGw
         gwh[:, 1] = gwh[:, 1] * nGh
-        gxy[:, 0] = torch.clamp(gxy[:, 0], min=0, max=nGw -1)
-        gxy[:, 1] = torch.clamp(gxy[:, 1], min=0, max=nGh -1)
+        gxy[:, 0] = torch.clamp(gxy[:, 0], min=0, max=nGw - 1)
+        gxy[:, 1] = torch.clamp(gxy[:, 1], min=0, max=nGh - 1)
 
-        gt_boxes = torch.cat([gxy, gwh], dim=1)                                            # Shape Ngx4 (xc, yc, w, h)
-        
+        gt_boxes = torch.cat([gxy, gwh], dim=1)  # Shape Ngx4 (xc, yc, w, h)
+
         anchor_mesh = generate_anchor(nGh, nGw, anchor_wh)
-        anchor_list = anchor_mesh.permute(0,2,3,1).contiguous().view(-1, 4)              # Shpae (nA x nGh x nGw) x 4
-        #print(anchor_list.shape, gt_boxes.shape)
-        iou_pdist = bbox_iou(anchor_list, gt_boxes)                                      # Shape (nA x nGh x nGw) x Ng
-        iou_max, max_gt_index = torch.max(iou_pdist, dim=1)                              # Shape (nA x nGh x nGw), both
+        anchor_list = anchor_mesh.permute(0, 2, 3, 1).contiguous().view(-1, 4)  # Shpae (nA x nGh x nGw) x 4
+        # print(anchor_list.shape, gt_boxes.shape)
+        iou_pdist = bbox_iou(anchor_list, gt_boxes)  # Shape (nA x nGh x nGw) x Ng
+        iou_max, max_gt_index = torch.max(iou_pdist, dim=1)  # Shape (nA x nGh x nGw), both
 
-        iou_map = iou_max.view(nA, nGh, nGw)       
+        iou_map = iou_max.view(nA, nGh, nGw)
         gt_index_map = max_gt_index.view(nA, nGh, nGw)
 
-        #nms_map = pooling_nms(iou_map, 3)
-        
+        # nms_map = pooling_nms(iou_map, 3)
+
         id_index = iou_map > ID_THRESH
-        fg_index = iou_map > FG_THRESH                                                    
-        bg_index = iou_map < BG_THRESH 
+        fg_index = iou_map > FG_THRESH
+        bg_index = iou_map < BG_THRESH
         ign_index = (iou_map < FG_THRESH) * (iou_map > BG_THRESH)
         tconf[b][fg_index] = 1
         tconf[b][bg_index] = 0
@@ -354,39 +356,42 @@ def build_targets_thres(target, anchor_wh, nA, nC, nGh, nGw):
         gt_index = gt_index_map[fg_index]
         gt_box_list = gt_boxes[gt_index]
         gt_id_list = t_id[gt_index_map[id_index]]
-        #print(gt_index.shape, gt_index_map[id_index].shape, gt_boxes.shape)
+        # print(gt_index.shape, gt_index_map[id_index].shape, gt_boxes.shape)
         if torch.sum(fg_index) > 0:
-            tid[b][id_index] =  gt_id_list.unsqueeze(1)
-            fg_anchor_list = anchor_list.view(nA, nGh, nGw, 4)[fg_index] 
+            tid[b][id_index] = gt_id_list.unsqueeze(1)
+            fg_anchor_list = anchor_list.view(nA, nGh, nGw, 4)[fg_index]
             delta_target = encode_delta(gt_box_list, fg_anchor_list)
             tbox[b][fg_index] = delta_target
     return tconf, tbox, tid
 
+
 def generate_anchor(nGh, nGw, anchor_wh):
     nA = len(anchor_wh)
-    yy, xx =torch.meshgrid(torch.arange(nGh), torch.arange(nGw))
+    yy, xx = torch.meshgrid(torch.arange(nGh), torch.arange(nGw))
     xx, yy = xx.cuda(), yy.cuda()
 
-    mesh = torch.stack([xx, yy], dim=0)                                              # Shape 2, nGh, nGw
-    mesh = mesh.unsqueeze(0).repeat(nA,1,1,1).float()                                # Shape nA x 2 x nGh x nGw
-    anchor_offset_mesh = anchor_wh.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, nGh,nGw) # Shape nA x 2 x nGh x nGw
-    anchor_mesh = torch.cat([mesh, anchor_offset_mesh], dim=1)                       # Shape nA x 4 x nGh x nGw
+    mesh = torch.stack([xx, yy], dim=0)  # Shape 2, nGh, nGw
+    mesh = mesh.unsqueeze(0).repeat(nA, 1, 1, 1).float()  # Shape nA x 2 x nGh x nGw
+    anchor_offset_mesh = anchor_wh.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, nGh, nGw)  # Shape nA x 2 x nGh x nGw
+    anchor_mesh = torch.cat([mesh, anchor_offset_mesh], dim=1)  # Shape nA x 4 x nGh x nGw
     return anchor_mesh
 
+
 def encode_delta(gt_box_list, fg_anchor_list):
-    px, py, pw, ph = fg_anchor_list[:, 0], fg_anchor_list[:,1], \
-                     fg_anchor_list[:, 2], fg_anchor_list[:,3]
+    px, py, pw, ph = fg_anchor_list[:, 0], fg_anchor_list[:, 1], \
+                     fg_anchor_list[:, 2], fg_anchor_list[:, 3]
     gx, gy, gw, gh = gt_box_list[:, 0], gt_box_list[:, 1], \
                      gt_box_list[:, 2], gt_box_list[:, 3]
     dx = (gx - px) / pw
     dy = (gy - py) / ph
-    dw = torch.log(gw/pw)
-    dh = torch.log(gh/ph)
+    dw = torch.log(gw / pw)
+    dh = torch.log(gh / ph)
     return torch.stack([dx, dy, dw, dh], dim=1)
 
+
 def decode_delta(delta, fg_anchor_list):
-    px, py, pw, ph = fg_anchor_list[:, 0], fg_anchor_list[:,1], \
-                     fg_anchor_list[:, 2], fg_anchor_list[:,3]
+    px, py, pw, ph = fg_anchor_list[:, 0], fg_anchor_list[:, 1], \
+                     fg_anchor_list[:, 2], fg_anchor_list[:, 3]
     dx, dy, dw, dh = delta[:, 0], delta[:, 1], delta[:, 2], delta[:, 3]
     gx = pw * dx + px
     gy = ph * dy + py
@@ -394,25 +399,27 @@ def decode_delta(delta, fg_anchor_list):
     gh = ph * torch.exp(dh)
     return torch.stack([gx, gy, gw, gh], dim=1)
 
+
 def decode_delta_map(delta_map, anchors):
     '''
     :param: delta_map, shape (nB, nA, nGh, nGw, 4)
     :param: anchors, shape (nA,4)
     '''
     nB, nA, nGh, nGw, _ = delta_map.shape
-    anchor_mesh = generate_anchor(nGh, nGw, anchors) 
-    anchor_mesh = anchor_mesh.permute(0,2,3,1).contiguous()              # Shpae (nA x nGh x nGw) x 4
-    anchor_mesh = anchor_mesh.unsqueeze(0).repeat(nB,1,1,1,1)
-    pred_list = decode_delta(delta_map.view(-1,4), anchor_mesh.view(-1,4))
+    anchor_mesh = generate_anchor(nGh, nGw, anchors)
+    anchor_mesh = anchor_mesh.permute(0, 2, 3, 1).contiguous()  # Shpae (nA x nGh x nGw) x 4
+    anchor_mesh = anchor_mesh.unsqueeze(0).repeat(nB, 1, 1, 1, 1)
+    pred_list = decode_delta(delta_map.view(-1, 4), anchor_mesh.view(-1, 4))
     pred_map = pred_list.view(nB, nA, nGh, nGw, 4)
     return pred_map
 
 
 def pooling_nms(heatmap, kernel=1):
-    pad = (kernel -1 ) // 2
+    pad = (kernel - 1) // 2
     hmax = F.max_pool2d(heatmap, (kernel, kernel), stride=1, padding=pad)
     keep = (hmax == heatmap).float()
     return keep * heatmap
+
 
 def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4, method='standard'):
     """
@@ -446,15 +453,15 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4, method='stand
         # From (center x, center y, width, height) to (x1, y1, x2, y2)
         pred[:, :4] = xywh2xyxy(pred[:, :4])
 
-        
         # Non-maximum suppression
         if method == 'standard':
-            nms_indices = nms(pred[:, :4], pred[:, 4], nms_thres)
+            nms_indices = my_nms(pred[:, :4].cpu().numpy(), pred[:, 4].cpu().numpy(), nms_thres)
+            # nms_indices = nms(pred[:, :4], pred[:, 4], nms_thres)
         elif method == 'fast':
             nms_indices = fast_nms(pred[:, :4], pred[:, 4], iou_thres=nms_thres, conf_thres=conf_thres)
         else:
             raise ValueError('Invalid NMS type!')
-        det_max = pred[nms_indices]        
+        det_max = pred[nms_indices]
 
         if len(det_max) > 0:
             # Add max detections to outputs
@@ -462,14 +469,168 @@ def non_max_suppression(prediction, conf_thres=0.5, nms_thres=0.4, method='stand
 
     return output
 
-def fast_nms(boxes, scores, iou_thres:float=0.5, top_k:int=200, second_threshold:bool=False, conf_thres:float=0.5):
+
+def tracker_nms(prediction, previous_stracks, img_size, img0_shape, **kwargs):
+    '''
+    non-maximal suppression method designed for tracking that takes in speed and direction
+    :param prediction: list of current initial detections, xywh
+    :param previous_stracks: list of previous N frame's tracking results, tlwh
+    :param conf_thres: confident threshold
+    :param nms_thres: nms iou threshold
+    :return:
+    '''
+    conf_thres = kwargs.pop("conf_thres", 0.5)
+    nms_thres = kwargs.pop("nms_thres", 0.4)
+    velo_thres = kwargs.pop("velo_thres", 100)
+
+    import ipdb
+    # ipdb.set_trace()
+    if len(previous_stracks) == 0:
+        # if True:
+        dets = non_max_suppression(prediction, conf_thres, nms_thres)[0]
+        scale_coords(img_size, dets[:, :4], img0_shape).round()
+        dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
+        return dets, embs
+
+    output = [None for _ in range(len(prediction))]
+    for image_i, pred in enumerate(prediction):
+        # 1. calculate the jaccard overlap between the prediction and previous tracks to assign speed
+        pred[:, :4] = xywh2xyxy(pred[:, :4])
+        current_proposals = pred[:, :4].clone()
+        scale_coords(img_size, current_proposals, img0_shape)
+
+        previous_detections = torch.tensor([strack.tlwh for strack in previous_stracks], dtype=torch.float32)
+        # tlwh to xywh
+        previous_detections[:, 0] = previous_detections[:, 0] + previous_detections[:, 2] / 2
+        previous_detections[:, 1] = previous_detections[:, 1] + previous_detections[:, 3] / 2
+        previous_detections = xywh2xyxy(previous_detections)
+        previous_detections = previous_detections.to(current_proposals.device)
+
+        overlap = jaccard(current_proposals, previous_detections)
+        # ipdb.set_trace()
+
+        # find index of the maximum iou for each proposal
+        max_index = torch.argmax(overlap, dim=1)
+        unmatched_mask = overlap[torch.arange(overlap.shape[0]), max_index] < 0.9  # these indices are set to be 0
+
+        # 2. estimate the speed of the previous tracks, already done with the kalman filter
+        # vx_all = torch.tensor([strack.mean[4] for strack in previous_stracks], dtype=torch.float32)
+        # vy_all = torch.tensor([strack.mean[5] for strack in previous_stracks], dtype=torch.float32)
+        # velo_all = torch.cat((vx_all.unsqueeze(0), vy_all.unsqueeze(0)), dim=0).to(current_proposals.device)
+        velo_all = velocity_estimate(previous_stracks).T
+        velo_all = torch.from_numpy(velo_all).to(current_proposals.device)
+
+        # 3. assign velocity to proposals by iou max_index
+        velo_proposal_all = velo_all[:, max_index]
+        velo_proposal_all[:, unmatched_mask] = 0  # set the speed of the unmatched proposals to 0
+
+        # pairwise l2 distance of velocity of the proposals
+        velo_diff = pairwise_distances(velo_proposal_all.T)
+        # ipdb.set_trace()
+
+        # 4. nms
+        scores = pred[:, 4].clone().cpu().numpy()
+        dets = pred[:, :4].clone().cpu().numpy()
+        keep_indices = velocity_nms(dets, scores, velo_diff.cpu().numpy(), nms_thres=nms_thres, velo_thres=velo_thres)
+        # ipdb.set_trace()
+        det_max = pred[keep_indices]
+
+        if len(det_max) > 0:
+            # Add max detections to outputs
+            output[image_i] = det_max if output[image_i] is None else torch.cat((output[image_i], det_max))
+
+    dets = output[0]
+    scale_coords(img_size, dets[:, :4], img0_shape).round()
+    dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
+    return dets, embs
+
+
+def velocity_estimate(stracks):
+    velo_all = []
+    for track in stracks:
+        history = track.history
+        past_five = [history[k] for k in list(history.keys())[-5::]]
+        if len(past_five) < 5:
+            past_five.extend([past_five[-1].copy()] * (5 - len(past_five)))
+        deltas = np.diff(past_five, axis=0)
+        velo = np.mean(deltas, axis=0)[:2]
+        velo_all.append(velo)
+    return np.array(velo_all)
+
+
+def velocity_nms(dets, scores, velo_diff, nms_thres, velo_thres, format="xyxy"):
+    if len(dets.shape) == 1:
+        dets = dets.reshape(1, -1)
+
+    if format == "xywh":
+        x1 = dets[:, 0]
+        y1 = dets[:, 1]
+        x2 = dets[:, 0] + dets[:, 2]
+        y2 = dets[:, 1] + dets[:, 3]
+    else:
+        x1 = dets[:, 0]
+        y1 = dets[:, 1]
+        x2 = dets[:, 2]
+        y2 = dets[:, 3]
+
+    areas = (x2 - x1) * (y2 - y1)
+    order = scores.argsort()[::-1]
+    keep = []
+    while order.size > 0:
+        i = order[0]
+        keep.append(i)
+        xx1 = np.maximum(x1[i], x1[order[1:]])
+        yy1 = np.maximum(y1[i], y1[order[1:]])
+        xx2 = np.minimum(x2[i], x2[order[1:]])
+        yy2 = np.minimum(y2[i], y2[order[1:]])
+
+        w = np.maximum(0.0, xx2 - xx1)
+        h = np.maximum(0.0, yy2 - yy1)
+        inter = w * h
+        ovr = inter / (areas[i] + areas[order[1:]] - inter)
+
+        all_inds = np.arange(len(order[1:]))
+        nms_inds = np.where(ovr > nms_thres)[0]
+        velocity_inds = np.where(velo_diff[i] <= velo_thres)[0]
+
+        suppressed_inds = np.intersect1d(nms_inds, velocity_inds)
+        keep_inds = np.setdiff1d(all_inds, suppressed_inds)
+
+        order = order[keep_inds + 1]
+        # inds = np.where(ovr <= nms_thres)[0]
+        # order = order[inds + 1]
+
+    return keep
+
+
+def pairwise_distances(x, y=None):
+    """
+    Input: x is a Nxd matrix
+           y is an optional Mxd matirx
+    Output: dist is a NxM matrix where dist[i,j] is the square norm between x[i,:] and y[j,:]
+            if y is not given then use 'y=x'.
+    i.e. dist[i,j] = ||x[i,:]-y[j,:]||^2
+    """
+    x_norm = (x ** 2).sum(1).view(-1, 1)
+    if y is not None:
+        y_norm = (y ** 2).sum(1).view(1, -1)
+    else:
+        y = x
+        y_norm = x_norm.view(1, -1)
+
+    dist = x_norm + y_norm - 2.0 * torch.mm(x, torch.transpose(y, 0, 1))
+    return dist
+
+
+def fast_nms(boxes, scores, iou_thres: float = 0.5, top_k: int = 200, second_threshold: bool = False,
+             conf_thres: float = 0.5):
     '''
     Vectorized, approximated, fast NMS, adopted from YOLACT:
     https://github.com/dbolya/yolact/blob/master/layers/functions/detection.py
     The original version is for multi-class NMS, here we simplify the code for single-class NMS
     '''
     scores, idx = scores.sort(0, descending=True)
-    
+
     idx = idx[:top_k].contiguous()
     scores = scores[:top_k]
     num_dets = idx.size()
@@ -487,6 +648,47 @@ def fast_nms(boxes, scores, iou_thres:float=0.5, top_k:int=200, second_threshold
 
     return idx[keep]
 
+
+def my_nms(dets, scores, thresh, format="xyxy"):
+    if len(dets.shape) == 1:
+        dets = dets.reshape(1, -1)
+
+    # if len(scores.shape) == 1:
+    #     scores = scores.reshape(1, -1)
+    if format == "xywh":
+        x1 = dets[:, 0]
+        y1 = dets[:, 1]
+        x2 = dets[:, 0] + dets[:, 2]
+        y2 = dets[:, 1] + dets[:, 3]
+    else:
+        x1 = dets[:, 0]
+        y1 = dets[:, 1]
+        x2 = dets[:, 2]
+        y2 = dets[:, 3]
+
+    areas = (x2 - x1) * (y2 - y1)
+    order = scores.argsort()[::-1]
+    keep = []
+    while order.size > 0:
+        i = order[0]
+        keep.append(i)
+        xx1 = np.maximum(x1[i], x1[order[1:]])
+        yy1 = np.maximum(y1[i], y1[order[1:]])
+        xx2 = np.minimum(x2[i], x2[order[1:]])
+        yy2 = np.minimum(y2[i], y2[order[1:]])
+
+        # w = np.maximum(0.0, xx2 - xx1 + 1)
+        # h = np.maximum(0.0, yy2 - yy1 + 1)
+
+        w = np.maximum(0.0, xx2 - xx1)
+        h = np.maximum(0.0, yy2 - yy1)
+        inter = w * h
+        ovr = inter / (areas[i] + areas[order[1:]] - inter)
+
+        inds = np.where(ovr < thresh)[0]
+        order = order[inds + 1]
+
+    return keep
 
 
 @torch.jit.script
@@ -512,8 +714,7 @@ def intersect(box_a, box_b):
     return inter[:, :, :, 0] * inter[:, :, :, 1]
 
 
-
-def jaccard(box_a, box_b, iscrowd:bool=False):
+def jaccard(box_a, box_b, iscrowd: bool = False):
     """Compute the jaccard overlap of two sets of boxes.  The jaccard overlap
     is simply the intersection over union of two boxes.  Here we operate on
     ground truth boxes and default boxes. If iscrowd=True, put the crowd in box_b.
@@ -532,16 +733,14 @@ def jaccard(box_a, box_b, iscrowd:bool=False):
         box_b = box_b[None, ...]
 
     inter = intersect(box_a, box_b)
-    area_a = ((box_a[:, :, 2]-box_a[:, :, 0]) *
-              (box_a[:, :, 3]-box_a[:, :, 1])).unsqueeze(2).expand_as(inter)  # [A,B]
-    area_b = ((box_b[:, :, 2]-box_b[:, :, 0]) *
-              (box_b[:, :, 3]-box_b[:, :, 1])).unsqueeze(1).expand_as(inter)  # [A,B]
+    area_a = ((box_a[:, :, 2] - box_a[:, :, 0]) *
+              (box_a[:, :, 3] - box_a[:, :, 1])).unsqueeze(2).expand_as(inter)  # [A,B]
+    area_b = ((box_b[:, :, 2] - box_b[:, :, 0]) *
+              (box_b[:, :, 3] - box_b[:, :, 1])).unsqueeze(1).expand_as(inter)  # [A,B]
     union = area_a + area_b - inter
 
     out = inter / area_a if iscrowd else inter / union
     return out if use_batch else out.squeeze(0)
-
-
 
 
 def return_torch_unique_index(u, uv):
@@ -577,3 +776,57 @@ def plot_results():
             plt.title(s[i])
             if i == 0:
                 plt.legend()
+
+
+def random_colors(N, bright=True, shuffle=True, seed=1):
+    """
+    Generate random colors.
+    To get visually distinct colors, generate them in HSV space then
+    convert to RGB.
+    :param N: number of colors
+    :param bright: whether to draw bright colors
+    :return array of colors
+    """
+    brightness = 1.0 if bright else 0.7
+    hsv = [(i / float(N), 1, brightness) for i in range(N)]
+    colors = list(map(lambda c: colorsys.hsv_to_rgb(*c), hsv))
+    if shuffle:
+        random.seed(seed)
+        random.shuffle(colors)
+    return colors
+
+
+def visualize_boxes(image: Image, boxes: np.ndarray, texts=None, format="xywh", **kwargs):
+    """
+    Visualize boxes on the image
+    :param image: PIL image object
+    :param boxes: array of boxes N x (left, top, width, height)
+    :param texts: any text that you want to put? (length of N)
+    :param kwargs: PIL Image.Draw.draw keyword args (i.e. width, outline)
+    :return:
+    """
+    if type(boxes) != list:
+        assert type(boxes) == np.ndarray
+        if len(boxes.shape) == 1:
+            boxes = boxes.reshape(1, -1)
+    draw = ImageDraw.Draw(image)
+    for i, (x, y, w, h) in enumerate(boxes):
+        if format == "xywh":
+            draw.rectangle([x, y, x + w, y + h], **kwargs)
+        else:
+            draw.rectangle([x, y, w, h], **kwargs)
+        # print(texts)
+        if texts is not None:
+            draw.text(xy=[x, y], text=str(texts[i]))
+    return image
+
+
+if __name__ == "__main__":
+    from easydict import EasyDict
+    from collections import OrderedDict
+    stracks = EasyDict()
+    stracks['history'] = OrderedDict({'1': [1, 2, 3, 4], '2': [3, 4, 3, 4], '3': [5, 6, 7, 8], '4': [7, 4, 5, 6]})
+
+    velo_all = velocity_estimate([stracks, stracks]).T
+    import ipdb
+    ipdb.set_trace()
