@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="e1771156-923e-40ef-8431-6f3d133ceaed" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/Tracker-NMS-Ghost-BBox.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/inspectionProfiles/profiles_settings.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="master" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+    <option name="UPDATE_TYPE" value="REBASE" />
+  </component>
+  <component name="IgnoredFileRootStore">
+    <option name="generatedRoots">
+      <set>
+        <option value="$PROJECT_DIR$/.idea" />
+      </set>
+    </option>
+  </component>
+  <component name="ProjectId" id="1Ye2cIDpz7ybNvLacrQm0s0estU" />
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showExcludedFiles" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">
+    <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
+    <property name="WebServerToolWindowFactoryState" value="true" />
+    <property name="settings.editor.selected.configurable" value="web.server" />
+  </component>
+  <component name="SvnConfiguration">
+    <configuration />
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="e1771156-923e-40ef-8431-6f3d133ceaed" name="Default Changelist" comment="" />
+      <created>1583288817047</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1583288817047</updated>
+      <workItem from="1583288824690" duration="773000" />
+      <workItem from="1583289756966" duration="473000" />
+    </task>
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="1" />
+  </component>
+  <component name="WindowStateProjectService">
+    <state x="463" y="-954" key="CommitChangelistDialog2" timestamp="1583290257323">
+      <screen x="-286" y="-1057" width="1920" height="1001" />
+    </state>
+    <state x="463" y="-954" key="CommitChangelistDialog2/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583290257323" />
+    <state x="602" y="-806" key="MultipleFileMergeDialog" timestamp="1583289581174">
+      <screen x="-286" y="-1057" width="1920" height="1001" />
+    </state>
+    <state x="602" y="-806" key="MultipleFileMergeDialog/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583289581174" />
+    <state x="395" y="-899" key="SettingsEditor" timestamp="1583289713595">
+      <screen x="-286" y="-1057" width="1920" height="1001" />
+    </state>
+    <state x="395" y="-890" key="SettingsEditor/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583288958933" />
+    <state x="395" y="-899" key="SettingsEditor/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583289713595" />
+    <state x="579" y="-715" key="com.intellij.ide.util.TipDialog" timestamp="1583289756059">
+      <screen x="-286" y="-1057" width="1920" height="1001" />
+    </state>
+    <state x="579" y="-696" key="com.intellij.ide.util.TipDialog/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583288824783" />
+    <state x="579" y="-715" key="com.intellij.ide.util.TipDialog/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583289756059" />
+    <state x="691" y="-605" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1583289399040">
+      <screen x="-286" y="-1057" width="1920" height="1057" />
+    </state>
+    <state x="691" y="-605" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583289399040" />
+    <state x="793" y="-792" key="ftp.server.browser" timestamp="1583288913130">
+      <screen x="-286" y="-1057" width="1920" height="1057" />
+    </state>
+    <state x="793" y="-792" key="ftp.server.browser/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583288913130" />
+    <state x="646" y="-822" key="git4idea.branch.GitSmartOperationDialog" timestamp="1583289568082">
+      <screen x="-286" y="-1057" width="1920" height="1001" />
+    </state>
+    <state x="646" y="-809" key="git4idea.branch.GitSmartOperationDialog/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583289507837" />
+    <state x="646" y="-822" key="git4idea.branch.GitSmartOperationDialog/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583289568082" />
+  </component>
+</project>
