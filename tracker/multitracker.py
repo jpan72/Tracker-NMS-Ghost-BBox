@@ -7,6 +7,7 @@ import os.path as osp
 import time
 import torch
 import torch.nn.functional as F
+import copy
 
 from utils.utils import *
 from utils.log import logger
@@ -34,6 +35,7 @@ class STrack(BaseTrack):
         self.update_features(temp_feat)
         self.features = deque([], maxlen=buffer_size)
         self.alpha = 0.9
+        self.ghost = False
     
     def update_features(self, feat):
         feat /= np.linalg.norm(feat)
@@ -90,7 +92,7 @@ class STrack(BaseTrack):
         if new_id:
             self.track_id = self.next_id()
 
-    def update(self, new_track, frame_id, update_feature=True):
+    def update(self, new_track, frame_id, update_feature=True, update_kf=True):
         """
         Update a matched track
         :type new_track: STrack
@@ -101,15 +103,34 @@ class STrack(BaseTrack):
         self.frame_id = frame_id
         self.tracklet_len += 1
 
-        new_tlwh = new_track.tlwh
-        self.mean, self.covariance = self.kalman_filter.update(
-            self.mean, self.covariance, self.tlwh_to_xyah(new_tlwh))
+        if update_kf:
+            new_tlwh = new_track.tlwh
+            self.mean, self.covariance = self.kalman_filter.update(
+                self.mean, self.covariance, self.tlwh_to_xyah(new_tlwh))
         self.state = TrackState.Tracked
         self.is_activated = True
 
         self.score = new_track.score
         if update_feature:
             self.update_features(new_track.curr_feat)
+
+
+    def extend(self, frame_id):
+        """
+        Update a matched track
+        :type new_track: STrack
+        :type frame_id: int
+        :type update_feature: bool
+        :return:
+        """
+        self.frame_id = frame_id
+        self.tracklet_len += 1
+
+        self.state = TrackState.Tracked
+        self.is_activated = True
+
+
+
 
     @property
     #@jit(nopython=True)
@@ -186,122 +207,552 @@ class JDETracker(object):
 
         self.kalman_filter = KalmanFilter()
 
-    def update(self, im_blob, img0):
+    def update(self, im_blob, img0, ghost, G, save_lt, two_stage, small_ghost,
+        feat_ghost_match, iou_ghost_match, occ_ghost_match, ghost_feature_ths, ghost_iou_ths, ghost_occ_ths, save_thres,
+        update_ghost_feat, update_ghost_coords, ghost_stats=False):
+
         self.frame_id += 1
-        activated_starcks = []
+        activated_stracks = []
         refind_stracks = []
         lost_stracks = []
         removed_stracks = []
+        ghost_match_iou = []
 
-        t1 = time.time()
-        ''' Step 1: Network forward, get detections & embeddings'''
-        with torch.no_grad():
-            pred = self.model(im_blob)
-        pred = pred[pred[:, :, 4] > self.opt.conf_thres]
-        if len(pred) > 0:
-            dets = non_max_suppression(pred.unsqueeze(0), self.opt.conf_thres, 
-                                       self.opt.nms_thres)[0]
-            scale_coords(self.opt.img_size, dets[:, :4], img0.shape).round()
-            dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
-            '''Detections'''
-            detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30) for
-                          (tlbrs, f) in zip(dets, embs)]
-        else:
-            detections = []
+        if save_lt:
 
-        ''' Add newly detected tracklets to tracked_stracks'''
-        unconfirmed = []
-        tracked_stracks = []  # type: list[STrack]
-        for track in self.tracked_stracks:
-            if not track.is_activated:
-                unconfirmed.append(track)
+            t1 = time.time()
+            ''' Step 1: Network forward, get detections & embeddings'''
+            with torch.no_grad():
+                pred = self.model(im_blob)
+            pred = pred[pred[:, :, 4] > self.opt.conf_thres]
+            if len(pred) > 0:
+                dets = non_max_suppression(pred.unsqueeze(0), self.opt.conf_thres, 
+                                           self.opt.nms_thres)[0]
+                scale_coords(self.opt.img_size, dets[:, :4], img0.shape).round()
+                dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
+                '''Detections'''
+                detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30) for
+                              (tlbrs, f) in zip(dets, embs)]
             else:
-                tracked_stracks.append(track)
+                detections = []
 
-        ''' Step 2: First association, with embedding'''
-        strack_pool = joint_stracks(tracked_stracks, self.lost_stracks)
-        # Predict the current location with KF
-        STrack.multi_predict(strack_pool)
-        dists = matching.embedding_distance(strack_pool, detections)
-        dists = matching.fuse_motion(self.kalman_filter, dists, strack_pool, detections)
-        matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.7)
+            ''' Add newly detected tracklets to tracked_stracks'''
+            unconfirmed = []
+            tracked_stracks = []  # type: list[STrack]
+            for track in self.tracked_stracks:
+                if not track.is_activated:
+                    unconfirmed.append(track)
+                else:
+                    tracked_stracks.append(track)
 
-        for itracked, idet in matches:
-            track = strack_pool[itracked]
-            det = detections[idet]
-            if track.state == TrackState.Tracked:
-                track.update(detections[idet], self.frame_id)
-                activated_starcks.append(track)
-            else:
-                track.re_activate(det, self.frame_id, new_id=False)
-                refind_stracks.append(track)
+            ''' Step 2: First association, with embedding'''
+            strack_pool = joint_stracks(tracked_stracks, self.lost_stracks)
+            # Predict the current location with KF
+            STrack.multi_predict(strack_pool)
+            dists = matching.embedding_distance(strack_pool, detections)
+            dists = matching.fuse_motion(self.kalman_filter, dists, strack_pool, detections)
+            matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.7)
 
-        ''' Step 3: Second association, with IOU'''
-        detections = [detections[i] for i in u_detection]
-        r_tracked_stracks = [strack_pool[i] for i in u_track if strack_pool[i].state==TrackState.Tracked ]
-        dists = matching.iou_distance(r_tracked_stracks, detections)
-        matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.5)
-        
-        for itracked, idet in matches:
-            track = r_tracked_stracks[itracked]
-            det = detections[idet]
-            if track.state == TrackState.Tracked:
-                track.update(det, self.frame_id)
-                activated_starcks.append(track)
-            else:
-                track.re_activate(det, self.frame_id, new_id=False)
-                refind_stracks.append(track)
+            ghosts = []
+            for itracked, idet in matches:
+                track = strack_pool[itracked]
+                det = detections[idet]
+                if track.state == TrackState.Tracked:
+                    track.update(detections[idet], self.frame_id)
+                    track.ghost = False
+                    activated_stracks.append(track)
 
-        for it in u_track:
-            track = r_tracked_stracks[it]
-            if not track.state == TrackState.Lost:
-                track.mark_lost()
-                lost_stracks.append(track)
+                    # For each matched detection, create a ghost detection
+                    ghost= copy.deepcopy(det)
+                    ghost.ghost = True
+                    ghosts.append(ghost)
+                else:
+                    track.re_activate(det, self.frame_id, new_id=False)
+                    refind_stracks.append(track)
+            detections = [detections[i] for i in u_detection]
 
-        '''Deal with unconfirmed tracks, usually tracks with only one beginning frame'''
-        detections = [detections[i] for i in u_detection]
-        dists = matching.iou_distance(unconfirmed, detections)
-        matches, u_unconfirmed, u_detection = matching.linear_assignment(dists, thresh=0.7)
-        for itracked, idet in matches:
-            unconfirmed[itracked].update(detections[idet], self.frame_id)
-            activated_starcks.append(unconfirmed[itracked])
-        for it in u_unconfirmed:
-            track = unconfirmed[it]
-            track.mark_removed()
-            removed_stracks.append(track)
+            ''' Step 3: Second association, with IOU''' 
+            r_tracked_stracks = [strack_pool[i] for i in u_track if strack_pool[i].state==TrackState.Tracked ]
+            dists = matching.iou_distance(r_tracked_stracks, detections)
+            matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.5)
 
-        """ Step 4: Init new stracks"""
-        for inew in u_detection:
-            track = detections[inew]
-            if track.score < self.det_thresh:
-                continue
-            track.activate(self.kalman_filter, self.frame_id)
-            activated_starcks.append(track)
+            for itracked, idet in matches:
+                track = r_tracked_stracks[itracked]
+                det = detections[idet]
+                if track.state == TrackState.Tracked:
+                    track.update(det, self.frame_id)
+                    track.ghost = False
+                    activated_stracks.append(track)
+                else:
+                    track.re_activate(det, self.frame_id, new_id=False)
+                    refind_stracks.append(track)
+            detections = [detections[i] for i in u_detection]
 
-        """ Step 5: Update state"""
-        for track in self.lost_stracks:
-            if self.frame_id - track.end_frame > self.max_time_lost:
+
+            if G > 0:
+                # remove tracks that are out of frame (i.e. don't mask ghosts with such tracks)
+                for it in u_track:
+                    track = r_tracked_stracks[it]
+                    tlbr = track.tlbr
+                    if self.frame_id > 10 and tlbr[0] < 0 or tlbr[1] < 0 or tlbr[2] > 1088 or tlbr[3] > 608:
+                        track.mark_lost()
+                        lost_stracks.append(track)
+
+
+            ''' !!! Ghost association !!! '''
+            for iteration in range(G):
+
+                newly_matched = []
+                # detections.extend(ghosts) # deprecated
+                detections_g = ghosts
+
+                # IoU match for ghosts
+                if iou_ghost_match:
+
+                    r_tracked_stracks = [r_tracked_stracks[i] for i in u_track if r_tracked_stracks[i].state==TrackState.Tracked ]
+                    dists = matching.iou_distance(r_tracked_stracks, detections_g)
+
+                    if len(r_tracked_stracks) > 0:
+                        matches = list(zip(range(len(r_tracked_stracks)), dists.argmin(axis=1)))
+                        dists_min = dists.min(axis=1)
+                        matches = np.array(matches)[dists_min <= save_thres,:]
+                        u_track = np.where(dists_min > save_thres)[0]
+                    else:
+                        matches = []
+                        u_track = range(len(r_tracked_stracks))
+
+
+                    for itracked, idet in matches:
+                        track = r_tracked_stracks[itracked]
+                        det = detections_g[idet]
+                        if track.state == TrackState.Tracked:
+                            if ghost_stats:
+                                ghost_match_iou.append(1-dists[itracked, idet])
+                            # print(1 - dists[itracked, idet])
+                            # if iteration == 0:
+                            #     print('!!! IoU match')
+                            # else:
+                            #     print('!!! small ghost, IoU match')
+
+                            track.extend(self.frame_id)
+                            track.ghost = True
+                            activated_stracks.append(track)
+                            newly_matched.append(copy.deepcopy(det))   
+                        else:
+                            if det.ghost:
+                                continue
+                            track.re_activate(det, self.frame_id, new_id=False)
+                            refind_stracks.append(track)
+
+
+                # if no ghost is matched in this iteration, we no longer create ghost duplicates, so we stop ghost matching
+                if len(newly_matched) == 0:
+                    print("Break because no ghost is matched in current iteration")
+                    break
+                ghosts = newly_matched
+
+            ''' End of Ghost association'''
+
+            '''Mark unmatched tracks as lost'''
+            for it in u_track:
+                track = r_tracked_stracks[it]
+                if not track.state == TrackState.Lost:
+                    track.mark_lost()
+                    lost_stracks.append(track)
+
+            '''Deal with unconfirmed tracks, usually tracks with only one beginning frame'''
+            dists = matching.iou_distance(unconfirmed, detections)
+            matches, u_unconfirmed, u_detection = matching.linear_assignment(dists, thresh=0.7)
+            for itracked, idet in matches:
+                unconfirmed[itracked].update(detections[idet], self.frame_id)
+                activated_stracks.append(unconfirmed[itracked])
+            for it in u_unconfirmed:
+                track = unconfirmed[it]
                 track.mark_removed()
                 removed_stracks.append(track)
 
-        self.tracked_stracks = [t for t in self.tracked_stracks if t.state == TrackState.Tracked]
-        self.tracked_stracks = joint_stracks(self.tracked_stracks, activated_starcks)
-        self.tracked_stracks = joint_stracks(self.tracked_stracks, refind_stracks)
-        self.lost_stracks = sub_stracks(self.lost_stracks, self.tracked_stracks)
-        self.lost_stracks.extend(lost_stracks)
-        self.lost_stracks = sub_stracks(self.lost_stracks, self.removed_stracks)
-        self.removed_stracks.extend(removed_stracks)
-        self.tracked_stracks, self.lost_stracks = remove_duplicate_stracks(self.tracked_stracks, self.lost_stracks)
+            """ Step 4: Init new stracks"""
+            for inew in u_detection:
+                track = detections[inew]
+                if track.score < self.det_thresh:
+                    continue
+                track.activate(self.kalman_filter, self.frame_id)
+                activated_stracks.append(track)
+
+            """ Step 5: Update state"""
+            for track in self.lost_stracks:
+                if self.frame_id - track.end_frame > self.max_time_lost:
+                    track.mark_removed()
+                    removed_stracks.append(track)
+
+            self.tracked_stracks = [t for t in self.tracked_stracks if t.state == TrackState.Tracked]
+            self.tracked_stracks = joint_stracks(self.tracked_stracks, activated_stracks)
+            self.tracked_stracks = joint_stracks(self.tracked_stracks, refind_stracks)
+            self.lost_stracks = sub_stracks(self.lost_stracks, self.tracked_stracks)
+            self.lost_stracks.extend(lost_stracks)
+            self.lost_stracks = sub_stracks(self.lost_stracks, self.removed_stracks)
+            self.removed_stracks.extend(removed_stracks)
+            self.tracked_stracks, self.lost_stracks = remove_duplicate_stracks(self.tracked_stracks, self.lost_stracks)
+
+
+
+        elif two_stage:
+
+            # print('Performing two-stage association (ghost bbox)')
+            t1 = time.time()
+            ''' Step 1: Network forward, get detections & embeddings'''
+            with torch.no_grad():
+                pred = self.model(im_blob)
+            pred = pred[pred[:, :, 4] > self.opt.conf_thres]
+            if len(pred) > 0:
+                dets = non_max_suppression(pred.unsqueeze(0), self.opt.conf_thres, 
+                                           self.opt.nms_thres)[0]
+                scale_coords(self.opt.img_size, dets[:, :4], img0.shape).round()
+                dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
+                '''Detections'''
+                detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30) for
+                              (tlbrs, f) in zip(dets, embs)]
+            else:
+                detections = []
+
+            ''' Add newly detected tracklets to tracked_stracks'''
+            unconfirmed = []
+            tracked_stracks = []  # type: list[STrack]
+            for track in self.tracked_stracks:
+                if not track.is_activated:
+                    unconfirmed.append(track)
+                else:
+                    tracked_stracks.append(track)
+
+            ''' Step 2: First association, with embedding'''
+            strack_pool = joint_stracks(tracked_stracks, self.lost_stracks)
+            # Predict the current location with KF
+            STrack.multi_predict(strack_pool)
+            dists = matching.embedding_distance(strack_pool, detections)
+            dists = matching.fuse_motion(self.kalman_filter, dists, strack_pool, detections)
+            matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.7)
+
+            ghosts = []
+            for itracked, idet in matches:
+                track = strack_pool[itracked]
+                det = detections[idet]
+                if track.state == TrackState.Tracked:
+                    track.update(detections[idet], self.frame_id)
+                    track.ghost = False
+                    activated_stracks.append(track)
+
+                    # *** For each feature matched detection, create a ghost detection ***
+                    ghost= copy.deepcopy(det)
+                    ghost.ghost = True
+                    ghosts.append(ghost)
+                else:
+                    track.re_activate(det, self.frame_id, new_id=False)
+                    refind_stracks.append(track)
+            detections = [detections[i] for i in u_detection]
+
+
+            ''' Step 3: Second association, with IOU'''
+            
+            r_tracked_stracks = [strack_pool[i] for i in u_track if strack_pool[i].state==TrackState.Tracked ]
+            dists = matching.iou_distance(r_tracked_stracks, detections)
+            matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.5)
+
+            for itracked, idet in matches:
+                track = r_tracked_stracks[itracked]
+                det = detections[idet]
+                if track.state == TrackState.Tracked:
+                    track.update(det, self.frame_id)
+                    track.ghost = False
+                    activated_stracks.append(track)
+                else:
+                    track.re_activate(det, self.frame_id, new_id=False)
+                    refind_stracks.append(track)
+            detections = [detections[i] for i in u_detection]
+
+
+            if G > 0:
+                # remove tracks that are out of frame (i.e. don't match ghosts with such tracks)
+                for it in u_track:
+                    track = r_tracked_stracks[it]
+                    tlbr = track.tlbr
+                    if self.frame_id > 10 and tlbr[0] < 0 or tlbr[1] < 0 or tlbr[2] > 1088 or tlbr[3] > 608:
+                        track.mark_lost()
+                        lost_stracks.append(track)
+
+
+            ''' !!! Ghost association !!! '''
+            for iteration in range(G):
+
+                # adjust ghost box area by 50% (i.e. decrease box size length by 30%)
+                if small_ghost and iteration == 1:
+                    for i in range(len(ghosts)):
+                        ghosts[i]._tlwh[0] += ghosts[i].tlwh[2] / 2 * 0.3
+                        ghosts[i]._tlwh[1] += ghosts[i].tlwh[3] / 2 * 0.3
+                        ghosts[i]._tlwh[2] *= 0.7
+                        ghosts[i]._tlwh[3] *= 0.7
+
+                newly_matched = []
+                # detections.extend(ghosts) # deprecated
+                detections_g = ghosts
+
+                if feat_ghost_match:
+
+                    r_tracked_stracks = [r_tracked_stracks[i] for i in u_track if r_tracked_stracks[i].state==TrackState.Tracked]
+                    dists = matching.embedding_distance(r_tracked_stracks, detections_g)
+                    dists = matching.fuse_motion(self.kalman_filter, dists, r_tracked_stracks, detections_g)
+                    matches, u_track, u_detection = matching.linear_assignment(dists, thresh=ghost_feature_ths)
+
+                    for itracked, idet in matches:
+                        track = r_tracked_stracks[itracked]
+                        det = detections_g[idet]
+                        if track.state == TrackState.Tracked:
+                            print('!!! feature match')
+                            track.update(detections_g[idet], self.frame_id, update_ghost_feat, update_ghost_coords)
+                            track.ghost = True
+                            activated_stracks.append(track)
+                            newly_matched.append(copy.deepcopy(det))
+                        else:
+                            # don't initiate track for a ghost detection box
+                            if det.ghost:
+                                continue
+                            track.re_activate(det, self.frame_id, new_id=False)
+                            refind_stracks.append(track)
+                    detections_g = [detections_g[i] for i in u_detection]
+
+
+                if iou_ghost_match:
+
+                    r_tracked_stracks = [r_tracked_stracks[i] for i in u_track if r_tracked_stracks[i].state==TrackState.Tracked ]
+                    dists = matching.iou_distance(r_tracked_stracks, detections_g)
+                    matches, u_track, u_detection = matching.linear_assignment(dists, thresh=ghost_iou_ths)
+
+                    for itracked, idet in matches:
+                        track = r_tracked_stracks[itracked]
+                        det = detections_g[idet]
+                        if track.state == TrackState.Tracked:
+                            if ghost_stats:
+                                ghost_match_iou.append(1-dists[itracked, idet])
+                            # print(1 - dists[itracked, idet])
+                            # if iteration == 0:
+                            #     print('!!! IoU match')
+                            # else:
+                            #     print('!!! small ghost, IoU match')
+
+                            track.update(det, self.frame_id, update_ghost_feat, update_ghost_coords)
+                            track.ghost = True
+                            activated_stracks.append(track)
+                            newly_matched.append(copy.deepcopy(det))   
+                        else:
+                            if det.ghost:
+                                continue
+                            track.re_activate(det, self.frame_id, new_id=False)
+                            refind_stracks.append(track)
+                    detections_g = [detections_g[i] for i in u_detection]
+
+                if occ_ghost_match:
+
+                    r_tracked_stracks = [r_tracked_stracks[i] for i in u_track if r_tracked_stracks[i].state==TrackState.Tracked ]
+                    dists = matching.occ_distance(r_tracked_stracks, detections_g)
+                    matches, u_track, u_detection = matching.linear_assignment(dists, thresh=ghost_occ_ths)
+
+                    for itracked, idet in matches:
+                        track = r_tracked_stracks[itracked]
+                        det = detections_g[idet]
+                        if track.state == TrackState.Tracked:
+                            print('!!! Occlusion match')
+                            track.update(det, self.frame_id, update_ghost_feat, update_ghost_coords)
+                            track.ghost = True
+                            activated_stracks.append(track)
+                            newly_matched.append(copy.deepcopy(det))   
+                        else:
+                            if det.ghost:
+                                continue
+                            track.re_activate(det, self.frame_id, new_id=False)
+                            refind_stracks.append(track)
+                    detections_g = [detections_g[i] for i in u_detection]
+
+
+                # if no ghost is matched in this iteration, we no longer create ghost duplicates, so we stop ghost matching
+                if len(newly_matched) == 0:
+                    print("Break because no ghost is matched in current iteration")
+                    break
+                ghosts = newly_matched
+
+            ''' End of Ghost association'''
+            
+            '''Mark unmatched tracks as lost'''
+            for it in u_track:
+                track = r_tracked_stracks[it]
+                if not track.state == TrackState.Lost:
+                    track.mark_lost()
+                    lost_stracks.append(track)
+
+            '''Deal with unconfirmed tracks, usually tracks with only one beginning frame'''
+            dists = matching.iou_distance(unconfirmed, detections)
+            matches, u_unconfirmed, u_detection = matching.linear_assignment(dists, thresh=0.7)
+            for itracked, idet in matches:
+                unconfirmed[itracked].update(detections[idet], self.frame_id)
+                activated_stracks.append(unconfirmed[itracked])
+            for it in u_unconfirmed:
+                track = unconfirmed[it]
+                track.mark_removed()
+                removed_stracks.append(track)
+
+            """ Step 4: Init new stracks"""
+            for inew in u_detection:
+                track = detections[inew]
+                if track.score < self.det_thresh:
+                    continue
+                track.activate(self.kalman_filter, self.frame_id)
+                activated_stracks.append(track)
+
+            """ Step 5: Update state"""
+            for track in self.lost_stracks:
+                if self.frame_id - track.end_frame > self.max_time_lost:
+                    track.mark_removed()
+                    removed_stracks.append(track)
+
+            self.tracked_stracks = [t for t in self.tracked_stracks if t.state == TrackState.Tracked]
+            self.tracked_stracks = joint_stracks(self.tracked_stracks, activated_stracks)
+            self.tracked_stracks = joint_stracks(self.tracked_stracks, refind_stracks)
+            self.lost_stracks = sub_stracks(self.lost_stracks, self.tracked_stracks)
+            self.lost_stracks.extend(lost_stracks)
+            self.lost_stracks = sub_stracks(self.lost_stracks, self.removed_stracks)
+            self.removed_stracks.extend(removed_stracks)
+            self.tracked_stracks, self.lost_stracks = remove_duplicate_stracks(self.tracked_stracks, self.lost_stracks)
+
+
+        else: # Not used because naively adding ghosts causes too many FPs. Basically deprecated
+
+            print('Performing naive association with ghost bboxes')
+
+            t1 = time.time()
+            ''' Step 1: Network forward, get detections & embeddings'''
+            with torch.no_grad():
+                pred = self.model(im_blob)
+            pred = pred[pred[:, :, 4] > self.opt.conf_thres]
+            original_num_dets = 0
+            if len(pred) > 0:
+                dets = non_max_suppression(pred.unsqueeze(0), self.opt.conf_thres, 
+                                           self.opt.nms_thres)[0]
+                original_num_dets = len(dets)
+                scale_coords(self.opt.img_size, dets[:, :4], img0.shape).round()
+                dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
+                '''Detections'''
+                detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30) for
+                              (tlbrs, f) in zip(dets, embs)]
+                if ghost and self.frame_id > 1:
+                    detections =[copy.deepcopy(d) for d in detections for _ in range(G+1)] # order: 1 2 3 1 2 3 1 2 3 ...
+            else:
+                detections = []
+
+            ''' Add newly detected tracklets to tracked_stracks'''
+            unconfirmed = []
+            tracked_stracks = []  # type: list[STrack]
+            for track in self.tracked_stracks:
+                if not track.is_activated:
+                    unconfirmed.append(track)
+                else:
+                    tracked_stracks.append(track)
+
+            ''' Step 2: First association, with embedding'''
+            strack_pool = joint_stracks(tracked_stracks, self.lost_stracks)
+            # Predict the current location with KF
+            STrack.multi_predict(strack_pool)
+            dists = matching.embedding_distance(strack_pool, detections)
+            dists = matching.fuse_motion(self.kalman_filter, dists, strack_pool, detections)
+            matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.7)
+
+            for itracked, idet in matches:
+                track = strack_pool[itracked]
+                det = detections[idet]
+                if track.state == TrackState.Tracked:
+                    track.update(detections[idet], self.frame_id)
+                    activated_stracks.append(track)
+                else:
+                    if idet > original_num_dets:
+                        continue
+                    track.re_activate(det, self.frame_id, new_id=False)
+                    refind_stracks.append(track)
+
+            ''' Step 3: Second association, with IOU'''
+            # detections = [detections[i] for i in u_detection]
+            detections = [detections[i] for i in u_detection if i < original_num_dets]
+            r_tracked_stracks = [strack_pool[i] for i in u_track if strack_pool[i].state==TrackState.Tracked ]
+            dists = matching.iou_distance(r_tracked_stracks, detections)
+            matches, u_track, u_detection = matching.linear_assignment(dists, thresh=0.5)
+
+            for itracked, idet in matches:
+                track = r_tracked_stracks[itracked]
+                det = detections[idet]
+                if track.state == TrackState.Tracked:
+                    track.update(det, self.frame_id)
+                    activated_stracks.append(track)
+                else:
+                    track.re_activate(det, self.frame_id, new_id=False)
+                    refind_stracks.append(track)
+
+            for it in u_track:
+                track = r_tracked_stracks[it]
+                if not track.state == TrackState.Lost:
+                    track.mark_lost()
+                    lost_stracks.append(track)
+
+            '''Deal with unconfirmed tracks, usually tracks with only one beginning frame'''
+            detections = [detections[i] for i in u_detection]
+            dists = matching.iou_distance(unconfirmed, detections)
+            matches, u_unconfirmed, u_detection = matching.linear_assignment(dists, thresh=0.7)
+            for itracked, idet in matches:
+                unconfirmed[itracked].update(detections[idet], self.frame_id)
+                activated_stracks.append(unconfirmed[itracked])
+            for it in u_unconfirmed:
+                track = unconfirmed[it]
+                track.mark_removed()
+                removed_stracks.append(track)
+
+            """ Step 4: Init new stracks"""
+            for inew in u_detection:
+                track = detections[inew]
+                if track.score < self.det_thresh:
+                    continue
+                track.activate(self.kalman_filter, self.frame_id)
+                activated_stracks.append(track)
+
+            """ Step 5: Update state"""
+            for track in self.lost_stracks:
+                if self.frame_id - track.end_frame > self.max_time_lost:
+                    track.mark_removed()
+                    removed_stracks.append(track)
+
+            self.tracked_stracks = [t for t in self.tracked_stracks if t.state == TrackState.Tracked]
+            self.tracked_stracks = joint_stracks(self.tracked_stracks, activated_stracks)
+            self.tracked_stracks = joint_stracks(self.tracked_stracks, refind_stracks)
+            self.lost_stracks = sub_stracks(self.lost_stracks, self.tracked_stracks)
+            self.lost_stracks.extend(lost_stracks)
+            self.lost_stracks = sub_stracks(self.lost_stracks, self.removed_stracks)
+            self.removed_stracks.extend(removed_stracks)
+            self.tracked_stracks, self.lost_stracks = remove_duplicate_stracks(self.tracked_stracks, self.lost_stracks)
 
         # get scores of lost tracks
         output_stracks = [track for track in self.tracked_stracks if track.is_activated]
 
         logger.debug('===========Frame {}=========='.format(self.frame_id))
-        logger.debug('Activated: {}'.format([track.track_id for track in activated_starcks]))
+        logger.debug('Activated: {}'.format([track.track_id for track in activated_stracks]))
         logger.debug('Refind: {}'.format([track.track_id for track in refind_stracks]))
         logger.debug('Lost: {}'.format([track.track_id for track in lost_stracks]))
         logger.debug('Removed: {}'.format([track.track_id for track in removed_stracks]))
+
+        # print('===========Frame {}=========='.format(self.frame_id))
+        # print('Activated: {}'.format([track.track_id for track in activated_stracks]))
+        # print('Refind: {}'.format([track.track_id for track in refind_stracks]))
+        # print('Lost: {}'.format([track.track_id for track in lost_stracks]))
+        # print('Removed: {}'.format([track.track_id for track in removed_stracks]))
+
+        if ghost_stats:
+            return output_stracks, ghosts, ghost_match_iou
+
         return output_stracks
+
 
 def joint_stracks(tlista, tlistb):
     exists = {}

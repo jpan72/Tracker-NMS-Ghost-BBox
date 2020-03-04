@@ -61,6 +61,39 @@ def ious(atlbrs, btlbrs):
     return ious
 
 
+def occs(atlbrs, btlbrs):
+    """
+    Compute cost based on occlusion ratio
+    :type atlbrs: list[tlbr] | np.ndarray (tlbr of tracks)
+    :type atlbrs: list[tlbr] | np.ndarray (tlbr of detections)
+
+    :rtype ious np.ndarray
+    """
+    occlusions = np.zeros((len(atlbrs), len(btlbrs)), dtype=np.float)
+    if occlusions.size == 0:
+        return occlusions
+
+    ntrack = len(atlbrs)
+    ndet = len(btlbrs)
+    for i in range(ntrack):
+        for j in range(ndet):
+            track_tlbr = atlbrs[i]
+            det_tlbr = btlbrs[j]
+
+            xA = max(track_tlbr[0], det_tlbr[0])
+            yA = max(track_tlbr[1], det_tlbr[1])
+            xB = min(track_tlbr[2], det_tlbr[2])
+            yB = min(track_tlbr[3], det_tlbr[3])
+
+            inter_area = max(0, xB-xA+1) * max(0, yB-yA+1)
+            track_area = (det_tlbr[2] - det_tlbr[0] + 1) * (det_tlbr[3] - det_tlbr[1] + 1)
+
+            occ = inter_area / float(track_area)
+            occlusions[i][j] = occ
+
+    return occlusions
+
+
 def iou_distance(atracks, btracks):
     """
     Compute cost based on IoU
@@ -78,6 +111,28 @@ def iou_distance(atracks, btracks):
         btlbrs = [track.tlbr for track in btracks]
     _ious = ious(atlbrs, btlbrs)
     cost_matrix = 1 - _ious
+
+    return cost_matrix
+
+
+def occ_distance(atracks, btracks):
+    """
+    Compute cost based on occlusion ratio of the track
+    :type atracks: list[STrack] (tracks)
+    :type btracks: list[STrack] (detections)
+
+    :rtype cost_matrix np.ndarray
+    """
+
+    if (len(atracks)>0 and isinstance(atracks[0], np.ndarray)) or (len(btracks) > 0 and isinstance(btracks[0], np.ndarray)):
+        atlbrs = atracks
+        btlbrs = btracks
+    else:
+        atlbrs = [track.tlbr for track in atracks]
+        btlbrs = [track.tlbr for track in btracks]
+    _occs = occs(atlbrs, btlbrs)
+
+    cost_matrix = 1 - _occs
 
     return cost_matrix
 

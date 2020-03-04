@@ -42,17 +42,17 @@ class Evaluator(object):
 
         # remove ignored results
         keep = np.ones(len(trk_tlwhs), dtype=bool)
-        iou_distance = mm.distances.iou_matrix(ignore_tlwhs, trk_tlwhs, max_iou=0.5)
-        if len(iou_distance) > 0:
-            match_is, match_js = mm.lap.linear_sum_assignment(iou_distance)
-            match_is, match_js = map(lambda a: np.asarray(a, dtype=int), [match_is, match_js])
-            match_ious = iou_distance[match_is, match_js]
+        # iou_distance = mm.distances.iou_matrix(ignore_tlwhs, trk_tlwhs, max_iou=0.5)
+        # if len(iou_distance) > 0:
+        #     match_is, match_js = mm.lap.linear_sum_assignment(iou_distance)
+        #     match_is, match_js = map(lambda a: np.asarray(a, dtype=int), [match_is, match_js])
+        #     match_ious = iou_distance[match_is, match_js]
 
-            match_js = np.asarray(match_js, dtype=int)
-            match_js = match_js[np.logical_not(np.isnan(match_ious))]
-            keep[match_js] = False
-            trk_tlwhs = trk_tlwhs[keep]
-            trk_ids = trk_ids[keep]
+        #     match_js = np.asarray(match_js, dtype=int)
+        #     match_js = match_js[np.logical_not(np.isnan(match_ious))]
+        #     keep[match_js] = False
+        #     trk_tlwhs = trk_tlwhs[keep]
+        #     trk_ids = trk_ids[keep]
 
         # get distance matrix
         iou_distance = mm.distances.iou_matrix(gt_tlwhs, trk_tlwhs, max_iou=0.5)
