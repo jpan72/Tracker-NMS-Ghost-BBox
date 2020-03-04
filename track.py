@@ -136,13 +136,14 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
     Evaluator.save_summary(summary, os.path.join(result_root, 'summary_{}.xlsx'.format(exp_name)))
 
 
-
+# noinspection PyInterpreter,PyInterpreter
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(prog='track.py')
     parser.add_argument('--cfg', type=str, default='cfg/yolov3.cfg', help='cfg file path')
     parser.add_argument('--weights', type=str, default='weights/latest.pt', help='path to weights file')
     parser.add_argument('--output-dir', type=str, default='outputs', help='path to output path')
     parser.add_argument('--result-dir', type=str, default='results', help='path to result path')
+    parser.add_argument('--dataset', type=str, default='mot17_train', help='dataset to test on')
     parser.add_argument('--iou-thres', type=float, default=0.5, help='iou threshold required to qualify as detected')
     parser.add_argument('--conf-thres', type=float, default=0.5, help='object confidence threshold')
     parser.add_argument('--nms-thres', type=float, default=0.4, help='iou threshold for non-maximum suppression')
@@ -154,7 +155,7 @@ if __name__ == '__main__':
     opt = parser.parse_args()
     print(opt, end='\n\n')
  
-    if not opt.test_mot16:
+    if opt.dataset == 'mot17_train':
         seqs_str = '''MOT17-02-SDP
                       MOT17-04-SDP
                       MOT17-05-SDP
@@ -163,24 +164,72 @@ if __name__ == '__main__':
                       MOT17-11-SDP
                       MOT17-13-SDP
                     '''
+        # seqs_str = '''MOT17-13-SDP
+        #             '''
         data_root = '/hdd/yongxinw/MOT17/MOT17/train'
-    else:
-        seqs_str = '''MOT16-01
-                     MOT16-03
-                     MOT16-06
-                     MOT16-07
-                     MOT16-08
-                     MOT16-12
-                     MOT16-14'''
-        # seqs_str = '''MOT17-01-DPM
-        #              MOT17-03-DPM
-        #              MOT17-06-DPM
-        #              MOT17-07-DPM
-        #              MOT17-08-DPM
-        #              MOT17-12-DPM
-        #              MOT17-14-DPM'''
-        data_root = '/hdd/yongxinw/MOT16/test'
-        # data_root = '/hdd/yongxinw/MOT17/MOT17/test'
+
+    elif opt.dataset == 'mot15_train':
+        seqs_str = '''ADL-Rundle-6
+                      ADL-Rundle-8
+                      ETH-Bahnhof
+                      ETH-Pedcross2
+                      ETH-Sunnyday
+                      KITTI-13
+                      KITTI-17
+                      PETS09-S2L1
+                      TUD-Campus
+                      TUD-Stadtmitte
+                      Venice-2
+                    '''
+        data_root = '/hdd/yongxinw/2DMOT2015/train/'
+
+    elif opt.dataset == 'mot15_train_unique':
+        seqs_str = '''ADL-Rundle-6
+                      ADL-Rundle-8
+                      KITTI-13
+                      KITTI-17
+                      PETS09-S2L1
+                      TUD-Campus
+                      TUD-Stadtmitte
+                      Venice-2
+                    '''
+        data_root = '/hdd/yongxinw/2DMOT2015/train/'
+
+    elif opt.dataset == 'mot15_train_useful':
+        seqs_str = '''ETH-Bahnhof
+                      ETH-Sunnyday
+                      PETS09-S2L1
+                      TUD-Campus
+                      TUD-Stadtmitte
+                    '''
+        # seqs_str = "PETS09-S2L1"
+        data_root = '/hdd/yongxinw/2DMOT2015/train/'
+
+    elif opt.dataset == 'mot17_test':
+        seqs_str = '''MOT17-01-SDP
+                     MOT17-03-SDP
+                     MOT17-06-SDP
+                     MOT17-07-SDP
+                     MOT17-08-SDP
+                     MOT17-12-SDP
+                     MOT17-14-SDP'''
+        data_root = '/hdd/yongxinw/MOT17/MOT17/test'
+
+    elif opt.dataset == 'mot15_test':
+        seqs_str = '''ADL-Rundle-1
+                      ADL-Rundle-3
+                      AVG-TownCentre
+                      ETH-Crossing
+                      ETH-Jelmoli
+                      ETH-Linthescher
+                      KITTI-16
+                      KITTI-19
+                      PETS09-S2L2
+                      TUD-Crossing
+                      Venice-1
+                    '''
+        data_root = '/hdd/yongxinw/2DMOT2015/test/'
+
     seqs = [seq.strip() for seq in seqs_str.split()]
 
     main(opt,
