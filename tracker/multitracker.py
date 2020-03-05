@@ -301,18 +301,17 @@ class JDETracker(object):
 
             ''' !!! Ghost association !!! '''
             for iteration in range(G):
-
                 newly_matched = []
                 # detections.extend(ghosts) # deprecated
                 detections_g = ghosts
 
                 # IoU match for ghosts
-                if iou_ghost_match:
+                if True:
 
                     r_tracked_stracks = [r_tracked_stracks[i] for i in u_track if r_tracked_stracks[i].state==TrackState.Tracked ]
                     dists = matching.iou_distance(r_tracked_stracks, detections_g)
 
-                    if len(r_tracked_stracks) > 0:
+                    if len(r_tracked_stracks) > 0 and len(detections_g) > 0:
                         matches = list(zip(range(len(r_tracked_stracks)), dists.argmin(axis=1)))
                         dists_min = dists.min(axis=1)
                         matches = np.array(matches)[dists_min <= save_thres,:]
@@ -346,7 +345,7 @@ class JDETracker(object):
 
 
                 # if no ghost is matched in this iteration, we no longer create ghost duplicates, so we stop ghost matching
-                if len(newly_matched) == 0:
+                if iteration > 1 and len(newly_matched) == 0:
                     print("Break because no ghost is matched in current iteration")
                     break
                 ghosts = newly_matched
@@ -573,7 +572,7 @@ class JDETracker(object):
 
 
                 # if no ghost is matched in this iteration, we no longer create ghost duplicates, so we stop ghost matching
-                if len(newly_matched) == 0:
+                if iteration > 1 and len(newly_matched) == 0:
                     print("Break because no ghost is matched in current iteration")
                     break
                 ghosts = newly_matched

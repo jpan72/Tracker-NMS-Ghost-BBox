@@ -17,7 +17,9 @@ from utils.utils import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-def write_results(filename, results, data_type):
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
+
+def write_results(filename, results, data_type, dataset):
     if data_type == 'mot':
         save_format = '{frame},{id},{x1},{y1},{w},{h},1,-1,-1,-1\n'
     elif data_type == 'kitti':
@@ -33,6 +35,8 @@ def write_results(filename, results, data_type):
                 if track_id < 0:
                     continue
                 x1, y1, w, h = tlwh
+                if dataset in ['mot15_train', 'mot15_test'] and h < 59:
+                    continue
                 x2, y2 = x1 + w, y1 + h
                 line = save_format.format(frame=frame_id, id=track_id, x1=x1, y1=y1, x2=x2, y2=y2, w=w, h=h)
                 f.write(line)
@@ -102,9 +106,9 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
         frame_id += 1
 
     # save results
-    write_results(result_filename, results, data_type)
+    write_results(result_filename, results, data_type, opt.dataset)
     if opt.save_debug or opt.count_fn:
-    	return frame_id, timer.average_time, timer.calls, plot_arguments
+        return frame_id, timer.average_time, timer.calls, plot_arguments
     if opt.ghost_stats:
         return frame_id, timer.average_time, timer.calls, ghost_sequence, ghost_match_ious
     return frame_id, timer.average_time, timer.calls
@@ -129,7 +133,6 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
 
     if opt.count_fn or opt.ghost_stats:
         fig, axs = plt.subplots(2, 4, sharey=True, tight_layout=True)
-
 
     # for seq in seqs:
     for i, seq in enumerate(seqs):
@@ -157,14 +160,14 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             frame_rate = 30
 
         if opt.save_debug or opt.count_fn:
-        	nf, ta, tc, plot_arguments = eval_seq(opt, dataloader, data_type, result_filename,
-                              	save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
+            nf, ta, tc, plot_arguments = eval_seq(opt, dataloader, data_type, result_filename,
+                                save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
         if opt.ghost_stats:
             nf, ta, tc, ghost_sequence, ghost_match_ious = eval_seq(opt, dataloader, data_type, result_filename,
                                 save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
         else:
-	        nf, ta, tc = eval_seq(opt, dataloader, data_type, result_filename,
-	                              save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
+            nf, ta, tc = eval_seq(opt, dataloader, data_type, result_filename,
+                                  save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
         n_frame += nf
         timer_avgs.append(ta)
         timer_calls.append(tc)
@@ -185,7 +188,6 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             os.system(cmd_str)
             os.system("rm -R {}".format(output_dir))
 
-
         if opt.save_debug:
             debug_dir = os.path.join(opt.debug_images, opt.dataset)
             if not osp.exists(debug_dir):
@@ -203,8 +205,6 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             cmd_str = 'ffmpeg -y -f image2 -i {}/%05d.jpg -c:v copy {}'.format(debug_dir, debug_video_path)
             os.system(cmd_str)
             os.system("rm -R {}".format(debug_dir))
-
-
 
         if opt.count_fn:
             for img0, online_tlwhs, online_ids, frame_id, fps in plot_arguments:
@@ -239,9 +239,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
 
         if opt.ghost_stats:
 
-
             for ghost_tlwhs, frame_id in ghost_sequence:
-
                 try:
                     ghost_fn_overlap, num_fn_i, fn_closest_ghost_overlap = vis.get_overlap(ghost_tlwhs, acc.mot_events.loc[frame_id], seq, evaluator, frame_id=frame_id)
                     ghost_fn_overlaps.extend(ghost_fn_overlap)  
@@ -291,7 +289,6 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             axs[i//4, i%4].set_xlim(0,1)
             plt.legend(loc='upper right')
             plt.savefig('Ghost_stats.jpg')
-
 
     timer_avgs = np.asarray(timer_avgs)
     timer_calls = np.asarray(timer_calls)
@@ -428,6 +425,23 @@ if __name__ == '__main__':
                     '''
         data_root = '/hdd/yongxinw/2DMOT2015/test/'
 
+    elif opt.dataset == 'mot17':
+        seqs_str = '''MOT17-01-SDP
+                      MOT17-02-SDP
+                      MOT17-03-SDP
+                      MOT17-04-SDP
+                      MOT17-05-SDP
+                      MOT17-06-SDP
+                      MOT17-07-SDP
+                      MOT17-08-SDP
+                      MOT17-09-SDP
+                      MOT17-10-SDP
+                      MOT17-11-SDP
+                      MOT17-12-SDP
+                      MOT17-13-SDP
+                      MOT17-14-SDP
+                    '''
+
     seqs = [seq.strip() for seq in seqs_str.split()]
 
 
@@ -435,7 +449,8 @@ if __name__ == '__main__':
     main(opt,
          data_root=data_root,
          seqs=seqs,
-         exp_name=opt.weights.split('/')[-2],
+         # exp_name=opt.weights.split('/')[-2],
+         exp_name=opt.dataset,
          show_image=False,
          save_images=opt.save_images, 
          save_videos=opt.save_videos)
