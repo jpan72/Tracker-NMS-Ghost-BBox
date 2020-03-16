@@ -3,9 +3,7 @@
   <component name="ChangeListManager">
     <list default="true" id="e1771156-923e-40ef-8431-6f3d133ceaed" name="Default Changelist" comment="Remove small objects for MOT15 (height&lt;59px)">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/track.py" beforeDir="false" afterPath="$PROJECT_DIR$/track.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tracker/multitracker.py" beforeDir="false" afterPath="$PROJECT_DIR$/tracker/multitracker.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/kalman_filter.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/kalman_filter.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -15,7 +13,7 @@
   <component name="Git.Settings">
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="ghost" />
+        <entry key="$PROJECT_DIR$" value="tracker-nms" />
       </map>
     </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -54,6 +52,7 @@
       <workItem from="1583288824690" duration="773000" />
       <workItem from="1583289756966" duration="473000" />
       <workItem from="1583712453727" duration="37294000" />
+      <workItem from="1584320549955" duration="882000" />
     </task>
     <task id="LOCAL-00001" summary="Remove small objects for MOT15 (height&lt;59px)">
       <created>1583389560724</created>
