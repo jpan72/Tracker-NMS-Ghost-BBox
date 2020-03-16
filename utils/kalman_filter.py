@@ -123,7 +123,7 @@ class KalmanFilter(object):
 
         return mean, covariance
 
-    def project(self, mean, covariance):
+    def project(self, mean, covariance, var_multiplier=1):
         """Project state distribution to measurement space.
 
         Parameters
@@ -141,10 +141,10 @@ class KalmanFilter(object):
 
         """
         std = [
-            self._std_weight_position * mean[3],
-            self._std_weight_position * mean[3],
+            self._std_weight_position * mean[3] * var_multiplier,
+            self._std_weight_position * mean[3] * var_multiplier,
             1e-1,
-            self._std_weight_position * mean[3]]
+            self._std_weight_position * mean[3] * var_multiplier]
         innovation_cov = np.diag(np.square(std))
 
         mean = np.dot(self._update_mat, mean)
@@ -194,7 +194,7 @@ class KalmanFilter(object):
 
         return mean, covariance
 
-    def update(self, mean, covariance, measurement):
+    def update(self, mean, covariance, measurement, var_multiplier=1):
         """Run Kalman filter correction step.
 
         Parameters
@@ -214,7 +214,7 @@ class KalmanFilter(object):
             Returns the measurement-corrected state distribution.
 
         """
-        projected_mean, projected_cov = self.project(mean, covariance)
+        projected_mean, projected_cov = self.project(mean, covariance, var_multiplier)
 
         chol_factor, lower = scipy.linalg.cho_factor(
             projected_cov, lower=True, check_finite=False)

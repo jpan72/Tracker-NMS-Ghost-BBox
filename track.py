@@ -17,7 +17,7 @@ from utils.utils import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+os.environ["CUDA_VISIBLE_DEVICES"]="2"
 
 def write_results(filename, results, data_type, dataset):
     if data_type == 'mot':
@@ -63,10 +63,10 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
         blob = torch.from_numpy(img).cuda().unsqueeze(0)
 
         if opt.ghost_stats:
-            online_targets, ghosts, ghost_match_iou = tracker.update(blob, img0, opt.ghost, opt.G, opt.two_stage, opt.small_ghost,
+            online_targets, ghosts, ghost_match_iou = tracker.update(blob, img0, opt.ghost, opt.G, opt.save_lt, opt.two_stage, opt.small_ghost,
                 opt.feat_ghost_match, opt.iou_ghost_match, opt.occ_ghost_match,
-                opt.ghost_feature_thres, opt.ghost_iou_thres, opt.ghost_occ_thres,
-                opt.update_ghost_feat, opt.update_ghost_coords, ghost_stats=True)
+                opt.ghost_feature_thres, opt.ghost_iou_thres, opt.ghost_occ_thres, opt.save_thres,
+                opt.update_ghost_feat, opt.update_ghost_coords, ghost_stats=True, var_multiplier=opt.KF_var_mult)
             ghost_tlwhs = [g.tlwh for g in ghosts]
             ghost_sequence.append((ghost_tlwhs, frame_id))
             ghost_match_ious.extend(ghost_match_iou)
@@ -75,7 +75,8 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
             online_targets = tracker.update(blob, img0, opt.ghost, opt.G, opt.save_lt, opt.two_stage, opt.small_ghost,
                 opt.feat_ghost_match, opt.iou_ghost_match, opt.occ_ghost_match,
                 opt.ghost_feature_thres, opt.ghost_iou_thres, opt.ghost_occ_thres, opt.save_thres,
-                opt.update_ghost_feat, opt.update_ghost_coords)
+                opt.update_ghost_feat, opt.update_ghost_coords,
+                var_multiplier=opt.KF_var_mult, ghost_track=opt.ghost_track, N=opt.N)
 
         online_tlwhs = []
         online_ids = []
@@ -241,6 +242,10 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
 
             for ghost_tlwhs, frame_id in ghost_sequence:
                 try:
+                    # print(frame_id)
+                    # print('ghost_tlwhs')
+                    # print(ghost_tlwhs)
+                    # print()
                     ghost_fn_overlap, num_fn_i, fn_closest_ghost_overlap = vis.get_overlap(ghost_tlwhs, acc.mot_events.loc[frame_id], seq, evaluator, frame_id=frame_id)
                     ghost_fn_overlaps.extend(ghost_fn_overlap)  
                     num_fn += num_fn_i
@@ -330,7 +335,9 @@ if __name__ == '__main__':
     parser.add_argument('--track-buffer', type=int, default=30, help='tracking buffer')
     parser.add_argument('--G', type=int, default=1, help='number of additional ghost boxes for each detection')
     parser.add_argument('--save-thres', type=float, default=0.5, help='number of additional ghost boxes for each detection')
-    
+    parser.add_argument('--KF-var-mult', type=float, default=1, help='multiplier of KF variance for ghost matches')
+    parser.add_argument('--N', type=int, default=1, help='number of ghost track copies for each unmatched track')
+
     # parser.add_argument('--test-mot17', action='store_true', help='tracking buffer')
     parser.add_argument('--save-images', action='store_true', help='save tracking results (image)')
     parser.add_argument('--save-videos', action='store_true', help='save tracking results (video)')
@@ -343,9 +350,10 @@ if __name__ == '__main__':
     parser.add_argument('--feat-ghost-match', action='store_true', help='perform feature match for ghosts')
     parser.add_argument('--iou-ghost-match', action='store_true', help='perform iou match for ghosts')
     parser.add_argument('--occ-ghost-match', action='store_true', help='perform occlusion match for ghosts')
-    parser.add_argument('--small-ghost', action='store_true', help='propose smaller ghost box in second ghost iteration')
+    parser.add_argument('--small-ghost', action='store_true', help='propose smaller ghost box as well')
     parser.add_argument('--ghost-stats', action='store_true', help='get IoU statistics between all proposed ghosts and FNs')
     parser.add_argument('--save-lt', action='store_true', help='use ghost only for reactivate lost tracks; for each lost track, see if there is a ghost where IoU > threshold')
+    parser.add_argument('--ghost-track', action='store_true', help='use ghost track instead ghost detection')
 
     opt = parser.parse_args()
     print(opt, end='\n\n')
@@ -443,7 +451,6 @@ if __name__ == '__main__':
                     '''
 
     seqs = [seq.strip() for seq in seqs_str.split()]
-
 
 
     main(opt,

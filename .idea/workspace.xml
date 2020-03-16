@@ -1,12 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="e1771156-923e-40ef-8431-6f3d133ceaed" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/other.xml" afterDir="false" />
+    <list default="true" id="e1771156-923e-40ef-8431-6f3d133ceaed" name="Default Changelist" comment="Remove small objects for MOT15 (height&lt;59px)">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/track.py" beforeDir="false" afterPath="$PROJECT_DIR$/track.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tracker/multitracker.py" beforeDir="false" afterPath="$PROJECT_DIR$/tracker/multitracker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/kalman_filter.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/kalman_filter.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -54,11 +53,24 @@
       <updated>1583288817047</updated>
       <workItem from="1583288824690" duration="773000" />
       <workItem from="1583289756966" duration="473000" />
+      <workItem from="1583712453727" duration="37294000" />
     </task>
+    <task id="LOCAL-00001" summary="Remove small objects for MOT15 (height&lt;59px)">
+      <created>1583389560724</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1583389560724</updated>
+    </task>
+    <option name="localTasksCounter" value="2" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="1" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="Remove small objects for MOT15 (height&lt;59px)" />
+    <option name="LAST_COMMIT_MESSAGE" value="Remove small objects for MOT15 (height&lt;59px)" />
   </component>
   <component name="WindowStateProjectService">
     <state x="487" y="-891" key="#Deployment" timestamp="1583297330880">
@@ -69,9 +81,15 @@
       <screen x="-285" y="-1057" width="1920" height="1057" />
     </state>
     <state x="487" y="-892" key="#Options/0.23.1280.720/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583383578336" />
-    <state x="463" y="-954" key="CommitChangelistDialog2" timestamp="1583290273710">
-      <screen x="-286" y="-1057" width="1920" height="1001" />
+    <state x="509" y="-875" width="777" height="636" key="#com.intellij.openapi.keymap.impl.ui.EditKeymapsDialog" timestamp="1583710700598">
+      <screen x="-285" y="-1057" width="1920" height="1057" />
     </state>
+    <state x="509" y="-875" width="777" height="636" key="#com.intellij.openapi.keymap.impl.ui.EditKeymapsDialog/0.23.1280.720/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583710700598" />
+    <state x="-152" y="-1057" width="1685" height="1057" key="CommitChangelistDialog2" timestamp="1584045635977">
+      <screen x="-342" y="-1057" width="1920" height="1057" />
+    </state>
+    <state x="-152" y="-1057" width="1685" height="1057" key="CommitChangelistDialog2/0.23.1280.720/-342.-1057.1920.1057@-342.-1057.1920.1057" timestamp="1584045635977" />
+    <state x="464" y="-954" width="1171" height="896" key="CommitChangelistDialog2/0.23.1280.777/-285.-1057.1920.1000@-285.-1057.1920.1000" timestamp="1583389560306" />
     <state x="463" y="-954" key="CommitChangelistDialog2/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583290273710" />
     <state x="239" y="-957" width="1296" height="801" key="DiffContextDialog" timestamp="1583297516299">
       <screen x="-285" y="-1057" width="1920" height="1057" />
@@ -91,9 +109,15 @@
     <state x="396" y="-890" key="SettingsEditor/0.23.1280.721/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583297283473" />
     <state x="395" y="-890" key="SettingsEditor/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583288958933" />
     <state x="395" y="-899" key="SettingsEditor/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583290816251" />
-    <state x="579" y="-715" key="com.intellij.ide.util.TipDialog" timestamp="1583289756059">
-      <screen x="-286" y="-1057" width="1920" height="1001" />
+    <state x="487" y="-816" key="Vcs.Push.Dialog.v2" timestamp="1583710705969">
+      <screen x="-285" y="-1057" width="1920" height="1057" />
     </state>
+    <state x="487" y="-816" key="Vcs.Push.Dialog.v2/0.23.1280.720/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583710705969" />
+    <state x="487" y="-829" key="Vcs.Push.Dialog.v2/0.23.1280.777/-285.-1057.1920.1000@-285.-1057.1920.1000" timestamp="1583389564129" />
+    <state x="580" y="-696" key="com.intellij.ide.util.TipDialog" timestamp="1583712551825">
+      <screen x="-285" y="-1057" width="1920" height="1057" />
+    </state>
+    <state x="580" y="-696" key="com.intellij.ide.util.TipDialog/0.23.1280.720/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583712551825" />
     <state x="579" y="-696" key="com.intellij.ide.util.TipDialog/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583288824783" />
     <state x="579" y="-715" key="com.intellij.ide.util.TipDialog/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583289756059" />
     <state x="691" y="-605" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2" timestamp="1583289399040">
@@ -109,6 +133,10 @@
     </state>
     <state x="646" y="-809" key="git4idea.branch.GitSmartOperationDialog/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583289507837" />
     <state x="646" y="-822" key="git4idea.branch.GitSmartOperationDialog/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583289568082" />
+    <state x="602" y="-822" width="670" height="676" key="search.everywhere.popup" timestamp="1583888168732">
+      <screen x="-294" y="-1057" width="1920" height="1057" />
+    </state>
+    <state x="602" y="-822" width="670" height="676" key="search.everywhere.popup/0.23.1280.720/-294.-1057.1920.1057@-294.-1057.1920.1057" timestamp="1583888168732" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
