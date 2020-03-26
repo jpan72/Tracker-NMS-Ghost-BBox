@@ -408,3 +408,25 @@ class JointDataset(LoadImagesAndLabels):  # for training
         return imgs, labels, img_path, (h, w) 
 
 
+class GhostDataset(Dataset):
+    def __init__(self, dataset_root):
+        self.npz_paths = {}
+        count = 0
+        seqs = os.listdir(dataset_root)
+        for seq in seqs:
+            seq_path = osp.join(dataset_root, seq, 'preprocess')
+            npzs = os.listdir(seq_path)
+            for npz in npzs:
+                npz_path = osp.join(seq_path, npz)
+                self.npz_paths[count] = npz_path
+                count += 1
+
+
+    def __len__(self):
+        return len(self.npz_paths)
+
+
+    def __getitem__(self, idx):
+        path = self.npz_paths[idx]
+        data = np.load(path)
+        return data['track_feat'], data['det_feat'], data['target_delta_bbox']

@@ -243,11 +243,19 @@ class Darknet(nn.Module):
         #img_size = x.shape[-1]
         layer_outputs = []
         output = []
+        conv_count = 0
+        conv5_out = None
 
         for i, (module_def, module) in enumerate(zip(self.module_defs, self.module_list)):
             mtype = module_def['type']
             if mtype in ['convolutional', 'upsample', 'maxpool']:
                 x = module(x)
+
+                if mtype == 'convolutional':
+                    conv_count += 1
+                    if conv_count == 5:
+                        conv5_out = x
+
             elif mtype == 'route':
                 layer_i = [int(x) for x in module_def['layers'].split(',')]
                 if len(layer_i) == 1:
@@ -278,7 +286,7 @@ class Darknet(nn.Module):
             return sum(output), torch.Tensor(list(self.losses.values())).cuda()
         elif self.test_emb:
             return torch.cat(output, 0)
-        return torch.cat(output, 1)
+        return torch.cat(output, 1), conv5_out
 
 def shift_tensor_vertically(t, delta):
     # t should be a 5-D tensor (nB, nA, nH, nW, nC)
@@ -400,3 +408,78 @@ def save_weights(self, path, cutoff=-1):
             conv_layer.weight.data.cpu().numpy().tofile(fp)
 
     fp.close()
+
+
+class GPN(nn.Module):
+    def __init__(self):
+        super(GPN, self).__init__()
+        self.fc1 = nn.Linear(1024, 1024)
+        self.fc2 = nn.Linear(1024, 1024)
+        self.fc3 = nn.Linear(1024, 1024)
+        self.reg = nn.Linear(1024, 4)
+
+        # TODO: add classification layer and CE loss
+
+
+    def forward(self, track_feat, det_feat):
+        """
+        track_feat: bs, 512
+        det_feat:   bs, 512
+        """
+
+        x = torch.cat((track_feat, det_feat), dim=1) # concatenate across channels
+        x = self.fc1(x)
+        x = self.fc2(x)
+        x = self.fc3(x)
+        delta_bbox = self.reg(x)
+
+        return delta_bbox
+
+# class GPN(nn.Module):
+#     def __init__(self):
+#         super(GPN, self).__init__()
+#         self.feat_dim = 1024
+#         self.w = 38
+#         self.h = 78
+#         self.fc1 = nn.Linear(int(self.w*self.h*self.feat_dim*2/32), 4096)
+#         self.fc2 = nn.Linear(4096, 4096)
+#         self.fc3 = nn.Linear(4096, 4096)
+#         self.reg = nn.Linear(4096, 4)
+#
+#         # TODO: add classification layer and CE loss
+#
+#
+#     def forward(self, track_feat, det_feat):
+#         """
+#         track_feat: 39*19*1024
+#         det_feat:   39*19*1024
+#         """
+#
+#         x = torch.cat((track_feat, det_feat), dim=1) # concatenate across channels
+#         x = x.view(-1)
+#         x = self.fc1(x)
+#         x = self.fc2(x)
+#         x = self.fc3(x)
+#         x = self.fc3(x)
+#         delta_bbox = self.reg(x)
+#
+#         return delta_bbox
+
+
+
+# class GPN(nn.Module):
+#     def __init__(self):
+#         super(GPN, self).__init__()
+#
+#         self.din = din  # get depth of input feature map, e.g., 512
+#
+#         # define the convrelu layers processing input feature map
+#         self.RPN_Conv = nn.Conv2d(self.din, 512, 3, 1, 1, bias=True)
+#
+#         # define bg/fg classification score layer
+#         self.nc_score_out = 2
+#         self.RPN_cls_score = nn.Conv2d(512, self.nc_score_out, 1, 1, 0)
+#
+#         # define ghost box offset prediction layer
+#         self.nc_bbox_out = 4
+#         self.RPN_bbox_pred = nn.Conv2d(512, self.nc_bbox_out, 1, 1, 0)

@@ -63,20 +63,13 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
         blob = torch.from_numpy(img).cuda().unsqueeze(0)
 
         if opt.ghost_stats:
-            online_targets, ghosts, ghost_match_iou = tracker.update(blob, img0, opt.ghost, opt.G, opt.save_lt, opt.two_stage, opt.small_ghost,
-                opt.feat_ghost_match, opt.iou_ghost_match, opt.occ_ghost_match,
-                opt.ghost_feature_thres, opt.ghost_iou_thres, opt.ghost_occ_thres, opt.save_thres,
-                opt.update_ghost_feat, opt.update_ghost_coords, ghost_stats=True, var_multiplier=opt.KF_var_mult)
+            online_targets, ghosts, ghost_match_iou = tracker.update(opt)
             ghost_tlwhs = [g.tlwh for g in ghosts]
             ghost_sequence.append((ghost_tlwhs, frame_id))
             ghost_match_ious.extend(ghost_match_iou)
 
-        else:            
-            online_targets = tracker.update(blob, img0, opt.ghost, opt.G, opt.save_lt, opt.two_stage, opt.small_ghost,
-                opt.feat_ghost_match, opt.iou_ghost_match, opt.occ_ghost_match,
-                opt.ghost_feature_thres, opt.ghost_iou_thres, opt.ghost_occ_thres, opt.save_thres,
-                opt.update_ghost_feat, opt.update_ghost_coords,
-                var_multiplier=opt.KF_var_mult, ghost_track=opt.ghost_track, N=opt.N)
+        else:
+            online_targets = tracker.update(blob, img0, opt)
 
         online_tlwhs = []
         online_ids = []
@@ -115,7 +108,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
     return frame_id, timer.average_time, timer.calls
 
 
-def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), exp_name='demo', 
+def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), exp_name='demo',
          save_images=False, save_videos=False, show_image=True):
     logger.setLevel(logging.INFO)
     # result_root = os.path.join(data_root, '..', 'results', exp_name)
@@ -155,7 +148,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
         dataloader = datasets.LoadImages(osp.join(data_root, seq, 'img1'), opt.img_size)
         result_filename = os.path.join(result_root, '{}.txt'.format(seq))
         try:
-            meta_info = open(os.path.join(data_root, seq, 'seqinfo.ini')).read() 
+            meta_info = open(os.path.join(data_root, seq, 'seqinfo.ini')).read()
             frame_rate = int(meta_info[meta_info.find('frameRate')+10:meta_info.find('\nseqLength')])
         except:
             frame_rate = 30
@@ -247,7 +240,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
                     # print(ghost_tlwhs)
                     # print()
                     ghost_fn_overlap, num_fn_i, fn_closest_ghost_overlap = vis.get_overlap(ghost_tlwhs, acc.mot_events.loc[frame_id], seq, evaluator, frame_id=frame_id)
-                    ghost_fn_overlaps.extend(ghost_fn_overlap)  
+                    ghost_fn_overlaps.extend(ghost_fn_overlap)
                     num_fn += num_fn_i
                     fn_closest_ghost_overlaps.extend(fn_closest_ghost_overlap)
                 except:
@@ -283,7 +276,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             # axs[i//4, i%4].set_ylabel('Count%')
             # # plt.xlim(0,1)
             # axs[i//4, i%4].set_xlim(0,1)
-            # plt.savefig('Ghost_match_overlap.jpg')         
+            # plt.savefig('Ghost_match_overlap.jpg')
 
 
             axs[i//4, i%4].hist(fn_closest_ghost_overlaps, bins=np.linspace(0,1,11), alpha=0.5, label='unmatched', color='lightblue')
@@ -357,7 +350,7 @@ if __name__ == '__main__':
 
     opt = parser.parse_args()
     print(opt, end='\n\n')
- 
+
     if opt.dataset == 'mot17_train':
         seqs_str = '''MOT17-02-SDP
                       MOT17-04-SDP
@@ -387,14 +380,16 @@ if __name__ == '__main__':
         data_root = '/hdd/yongxinw/2DMOT2015/train/'
 
     elif opt.dataset == 'mot15_train_unique':
-        seqs_str = '''ADL-Rundle-6
-                      ADL-Rundle-8
-                      KITTI-13
-                      KITTI-17
-                      PETS09-S2L1
-                      TUD-Campus
-                      TUD-Stadtmitte
-                      Venice-2
+        # seqs_str = '''ADL-Rundle-6
+        #               ADL-Rundle-8
+        #               KITTI-13
+        #               KITTI-17
+        #               PETS09-S2L1
+        #               TUD-Campus
+        #               TUD-Stadtmitte
+        #               Venice-2
+        #             '''
+        seqs_str = '''ADL-Rundle-8
                     '''
         data_root = '/hdd/yongxinw/2DMOT2015/train/'
 

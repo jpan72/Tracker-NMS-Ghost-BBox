@@ -1,9 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="e1771156-923e-40ef-8431-6f3d133ceaed" name="Default Changelist" comment="Remove small objects for MOT15 (height&lt;59px)">
+    <list default="true" id="e1771156-923e-40ef-8431-6f3d133ceaed" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/GPN_preprocess.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/GPN_train.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/sort_data.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/track_trainGPN.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/tracker/preprocess_multitracker.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/train_GPN.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cfg/ccmcpe.json" beforeDir="false" afterPath="$PROJECT_DIR$/cfg/ccmcpe.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/cfg/yolov3_1088x608.cfg" beforeDir="false" afterPath="$PROJECT_DIR$/cfg/yolov3_1088x608.cfg" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/models.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/track.py" beforeDir="false" afterPath="$PROJECT_DIR$/track.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/tracker/matching.py" beforeDir="false" afterPath="$PROJECT_DIR$/tracker/matching.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tracker/multitracker.py" beforeDir="false" afterPath="$PROJECT_DIR$/tracker/multitracker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/datasets.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/datasets.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -37,7 +49,14 @@
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="true" />
-    <property name="settings.editor.selected.configurable" value="configurable.group.tools" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="settings.editor.selected.configurable" value="web.server" />
+  </component>
+  <component name="RecentsManager">
+    <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/tracker" />
+    </key>
   </component>
   <component name="SvnConfiguration">
     <configuration />
@@ -52,7 +71,9 @@
       <workItem from="1583288824690" duration="773000" />
       <workItem from="1583289756966" duration="473000" />
       <workItem from="1583712453727" duration="37294000" />
-      <workItem from="1584320549955" duration="882000" />
+      <workItem from="1584320549955" duration="13557000" />
+      <workItem from="1584406226135" duration="42575000" />
+      <workItem from="1585097542694" duration="22788000" />
     </task>
     <task id="LOCAL-00001" summary="Remove small objects for MOT15 (height&lt;59px)">
       <created>1583389560724</created>
@@ -61,7 +82,14 @@
       <option name="project" value="LOCAL" />
       <updated>1583389560724</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="remove unnecessary code/options for GPN">
+      <created>1584321758261</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1584321758261</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -69,7 +97,8 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Remove small objects for MOT15 (height&lt;59px)" />
-    <option name="LAST_COMMIT_MESSAGE" value="Remove small objects for MOT15 (height&lt;59px)" />
+    <MESSAGE value="remove unnecessary code/options for GPN" />
+    <option name="LAST_COMMIT_MESSAGE" value="remove unnecessary code/options for GPN" />
   </component>
   <component name="WindowStateProjectService">
     <state x="487" y="-891" key="#Deployment" timestamp="1583297330880">
@@ -84,9 +113,10 @@
       <screen x="-285" y="-1057" width="1920" height="1057" />
     </state>
     <state x="509" y="-875" width="777" height="636" key="#com.intellij.openapi.keymap.impl.ui.EditKeymapsDialog/0.23.1280.720/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583710700598" />
-    <state x="-152" y="-1057" width="1685" height="1057" key="CommitChangelistDialog2" timestamp="1584045635977">
+    <state x="-152" y="-1057" width="1685" height="1057" key="CommitChangelistDialog2" timestamp="1584321757796">
       <screen x="-342" y="-1057" width="1920" height="1057" />
     </state>
+    <state x="-152" y="-1057" key="CommitChangelistDialog2/0.23.1249.777/-342.-1057.1920.1057@-342.-1057.1920.1057" timestamp="1584321757796" />
     <state x="-152" y="-1057" width="1685" height="1057" key="CommitChangelistDialog2/0.23.1280.720/-342.-1057.1920.1057@-342.-1057.1920.1057" timestamp="1584045635977" />
     <state x="464" y="-954" width="1171" height="896" key="CommitChangelistDialog2/0.23.1280.777/-285.-1057.1920.1000@-285.-1057.1920.1000" timestamp="1583389560306" />
     <state x="463" y="-954" key="CommitChangelistDialog2/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583290273710" />
@@ -102,20 +132,24 @@
       <screen x="-286" y="-1057" width="1920" height="1001" />
     </state>
     <state x="602" y="-806" key="MultipleFileMergeDialog/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583289581174" />
-    <state x="396" y="-890" key="SettingsEditor" timestamp="1583297283473">
-      <screen x="-285" y="-1057" width="1920" height="1057" />
+    <state x="-268" y="-890" key="SettingsEditor" timestamp="1584502917856">
+      <screen x="-949" y="-1057" width="1920" height="1057" />
     </state>
+    <state x="-268" y="-890" key="SettingsEditor/0.23.1249.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1584502917856" />
     <state x="396" y="-890" key="SettingsEditor/0.23.1280.721/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583297283473" />
     <state x="395" y="-890" key="SettingsEditor/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583288958933" />
     <state x="395" y="-899" key="SettingsEditor/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583290816251" />
-    <state x="487" y="-816" key="Vcs.Push.Dialog.v2" timestamp="1583710705969">
-      <screen x="-285" y="-1057" width="1920" height="1057" />
+    <state x="430" y="-816" key="Vcs.Push.Dialog.v2" timestamp="1584321763619">
+      <screen x="-342" y="-1057" width="1920" height="1057" />
     </state>
+    <state x="430" y="-816" key="Vcs.Push.Dialog.v2/0.23.1249.777/-342.-1057.1920.1057@-342.-1057.1920.1057" timestamp="1584321763619" />
     <state x="487" y="-816" key="Vcs.Push.Dialog.v2/0.23.1280.720/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583710705969" />
     <state x="487" y="-829" key="Vcs.Push.Dialog.v2/0.23.1280.777/-285.-1057.1920.1000@-285.-1057.1920.1000" timestamp="1583389564129" />
-    <state x="580" y="-696" key="com.intellij.ide.util.TipDialog" timestamp="1583712551825">
-      <screen x="-285" y="-1057" width="1920" height="1057" />
+    <state x="-84" y="-696" key="com.intellij.ide.util.TipDialog" timestamp="1585097552002">
+      <screen x="-949" y="-1057" width="1920" height="1057" />
     </state>
+    <state x="-84" y="-696" key="com.intellij.ide.util.TipDialog/0.23.1245.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1585097552002" />
+    <state x="523" y="-696" key="com.intellij.ide.util.TipDialog/0.23.1249.777/-342.-1057.1920.1057@-342.-1057.1920.1057" timestamp="1584406232014" />
     <state x="580" y="-696" key="com.intellij.ide.util.TipDialog/0.23.1280.720/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583712551825" />
     <state x="579" y="-696" key="com.intellij.ide.util.TipDialog/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583288824783" />
     <state x="579" y="-715" key="com.intellij.ide.util.TipDialog/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583289756059" />
@@ -132,9 +166,10 @@
     </state>
     <state x="646" y="-809" key="git4idea.branch.GitSmartOperationDialog/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583289507837" />
     <state x="646" y="-822" key="git4idea.branch.GitSmartOperationDialog/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583289568082" />
-    <state x="602" y="-822" width="670" height="676" key="search.everywhere.popup" timestamp="1583888168732">
-      <screen x="-294" y="-1057" width="1920" height="1057" />
+    <state x="-53" y="-822" width="670" height="676" key="search.everywhere.popup" timestamp="1584584673417">
+      <screen x="-949" y="-1057" width="1920" height="1057" />
     </state>
+    <state x="-53" y="-822" width="670" height="676" key="search.everywhere.popup/0.23.1249.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1584584673417" />
     <state x="602" y="-822" width="670" height="676" key="search.everywhere.popup/0.23.1280.720/-294.-1057.1920.1057@-294.-1057.1920.1057" timestamp="1583888168732" />
   </component>
   <component name="XDebuggerManager">
