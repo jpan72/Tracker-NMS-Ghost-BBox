@@ -85,13 +85,13 @@ class STrack(BaseTrack):
     #         return ghost_tracks
 
     @staticmethod
-    def sample_ghost_tracks(stracks, N):
+    def sample_ghost_tracks(stracks, N, shrink_var):
         ghost_tracks = []
 
         for st in stracks:
             for i in range(N):
                 st_copy = copy.deepcopy(st)
-                st_copy.mean = np.random.multivariate_normal(st.mean, st.covariance)
+                st_copy.mean = np.random.multivariate_normal(st.mean, st.covariance * shrink_var)
                 if st.mean[4] == 0:
                     st_copy.mean[4:] = [0, 0, 0, 0]
                 ghost_tracks.append(st_copy)
@@ -244,7 +244,7 @@ class JDETracker(object):
 
     def update_ghost_track(self, im_blob, img0, ghost, G, save_lt, two_stage, small_ghost,
         feat_ghost_match, iou_ghost_match, occ_ghost_match, ghost_feature_ths, ghost_iou_ths, ghost_occ_ths, save_thres,
-        update_ghost_feat, update_ghost_coords, ghost_stats=False, var_multiplier=1, N=1):
+        update_ghost_feat, update_ghost_coords, ghost_stats=False, var_multiplier=1, N=1, shrink_var=1, include_mean=False):
 
         self.frame_id += 1
         activated_stracks = []
@@ -369,8 +369,11 @@ class JDETracker(object):
                 if iou_ghost_match:
 
                     r_tracked_stracks = [r_tracked_stracks[i] for i in u_track if r_tracked_stracks[i].state==TrackState.Tracked ]
-                    ghost_tracks = STrack.sample_ghost_tracks(r_tracked_stracks, N)
-                    r_tracked_stracks += ghost_tracks
+                    ghost_tracks = STrack.sample_ghost_tracks(r_tracked_stracks, N, shrink_var)
+                    if include_mean:
+                        r_tracked_stracks += ghost_tracks
+                    else:
+                        r_tracked_stracks = ghost_tracks
                     if len(r_tracked_stracks) > 0:
                         import pdb
                         pdb.set_trace()
@@ -1140,12 +1143,12 @@ class JDETracker(object):
 
     def update(self, im_blob, img0, ghost, G, save_lt, two_stage, small_ghost,
             feat_ghost_match, iou_ghost_match, occ_ghost_match, ghost_feature_ths, ghost_iou_ths, ghost_occ_ths, save_thres,
-            update_ghost_feat, update_ghost_coords, ghost_stats=False, var_multiplier=1, ghost_track=False, N=1):
+            update_ghost_feat, update_ghost_coords, ghost_stats=False, var_multiplier=1, ghost_track=False, N=1, shrink_var=1, include_mean=False):
 
         if ghost_track:
             return self.update_ghost_track(im_blob, img0, ghost, G, save_lt, two_stage, small_ghost,
                 feat_ghost_match, iou_ghost_match, occ_ghost_match, ghost_feature_ths, ghost_iou_ths, ghost_occ_ths, save_thres,
-                update_ghost_feat, update_ghost_coords, ghost_stats, var_multiplier, N)
+                update_ghost_feat, update_ghost_coords, ghost_stats, var_multiplier, N, shrink_var, include_mean)
 
         return self.update_ghost_box(im_blob, img0, ghost, G, save_lt, two_stage, small_ghost,
                 feat_ghost_match, iou_ghost_match, occ_ghost_match, ghost_feature_ths, ghost_iou_ths, ghost_occ_ths, save_thres,
