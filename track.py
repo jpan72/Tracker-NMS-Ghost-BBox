@@ -66,17 +66,17 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
             online_targets, ghosts, ghost_match_iou = tracker.update(blob, img0, opt.ghost, opt.G, opt.save_lt, opt.two_stage, opt.small_ghost,
                 opt.feat_ghost_match, opt.iou_ghost_match, opt.occ_ghost_match,
                 opt.ghost_feature_thres, opt.ghost_iou_thres, opt.ghost_occ_thres, opt.save_thres,
-                opt.update_ghost_feat, opt.update_ghost_coords, ghost_stats=True, var_multiplier=opt.KF_var_mult)
+                opt.update_ghost_feat, opt.update_ghost_coords, ghost_stats=True, var_multiplier=opt.KF_var_mult, shrink_var=opt.shrink_var, include_mean=opt.include_mean)
             ghost_tlwhs = [g.tlwh for g in ghosts]
             ghost_sequence.append((ghost_tlwhs, frame_id))
             ghost_match_ious.extend(ghost_match_iou)
 
-        else:            
+        else:
             online_targets = tracker.update(blob, img0, opt.ghost, opt.G, opt.save_lt, opt.two_stage, opt.small_ghost,
                 opt.feat_ghost_match, opt.iou_ghost_match, opt.occ_ghost_match,
                 opt.ghost_feature_thres, opt.ghost_iou_thres, opt.ghost_occ_thres, opt.save_thres,
                 opt.update_ghost_feat, opt.update_ghost_coords,
-                var_multiplier=opt.KF_var_mult, ghost_track=opt.ghost_track, N=opt.N)
+                var_multiplier=opt.KF_var_mult, ghost_track=opt.ghost_track, N=opt.N, shrink_var=opt.shrink_var, include_mean=opt.include_mean)
 
         online_tlwhs = []
         online_ids = []
@@ -115,7 +115,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
     return frame_id, timer.average_time, timer.calls
 
 
-def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), exp_name='demo', 
+def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), exp_name='demo',
          save_images=False, save_videos=False, show_image=True):
     logger.setLevel(logging.INFO)
     # result_root = os.path.join(data_root, '..', 'results', exp_name)
@@ -155,7 +155,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
         dataloader = datasets.LoadImages(osp.join(data_root, seq, 'img1'), opt.img_size)
         result_filename = os.path.join(result_root, '{}.txt'.format(seq))
         try:
-            meta_info = open(os.path.join(data_root, seq, 'seqinfo.ini')).read() 
+            meta_info = open(os.path.join(data_root, seq, 'seqinfo.ini')).read()
             frame_rate = int(meta_info[meta_info.find('frameRate')+10:meta_info.find('\nseqLength')])
         except:
             frame_rate = 30
@@ -163,7 +163,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
         if opt.save_debug or opt.count_fn:
             nf, ta, tc, plot_arguments = eval_seq(opt, dataloader, data_type, result_filename,
                                 save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
-        if opt.ghost_stats:
+        elif opt.ghost_stats:
             nf, ta, tc, ghost_sequence, ghost_match_ious = eval_seq(opt, dataloader, data_type, result_filename,
                                 save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
         else:
@@ -247,7 +247,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
                     # print(ghost_tlwhs)
                     # print()
                     ghost_fn_overlap, num_fn_i, fn_closest_ghost_overlap = vis.get_overlap(ghost_tlwhs, acc.mot_events.loc[frame_id], seq, evaluator, frame_id=frame_id)
-                    ghost_fn_overlaps.extend(ghost_fn_overlap)  
+                    ghost_fn_overlaps.extend(ghost_fn_overlap)
                     num_fn += num_fn_i
                     fn_closest_ghost_overlaps.extend(fn_closest_ghost_overlap)
                 except:
@@ -283,7 +283,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             # axs[i//4, i%4].set_ylabel('Count%')
             # # plt.xlim(0,1)
             # axs[i//4, i%4].set_xlim(0,1)
-            # plt.savefig('Ghost_match_overlap.jpg')         
+            # plt.savefig('Ghost_match_overlap.jpg')
 
 
             axs[i//4, i%4].hist(fn_closest_ghost_overlaps, bins=np.linspace(0,1,11), alpha=0.5, label='unmatched', color='lightblue')
@@ -322,8 +322,8 @@ if __name__ == '__main__':
     parser.add_argument('--result-dir', type=str, default='results', help='path to result files')
     parser.add_argument('--output-images', type=str, default='output_images', help='path to output path')
     parser.add_argument('--output-videos', type=str, default='output_videos', help='path to output path')
-    parser.add_argument('--debug-images', type=str, default='debug_images', help='path to debug vis result path')
-    parser.add_argument('--debug-videos', type=str, default='debug_videos', help='path to debug vis result path')
+    parser.add_argument('--debug-images', type=str, default='../exp/debug_images', help='path to debug vis result path')
+    parser.add_argument('--debug-videos', type=str, default='../exp/debug_videos', help='path to debug vis result path')
     parser.add_argument('--dataset', type=str, default='mot17_train', help='dataset to test on')
     parser.add_argument('--iou-thres', type=float, default=0.5, help='iou threshold required to qualify as detected')
     parser.add_argument('--ghost-feature-thres', type=float, default=0.6, help='feature threshold for ghost matching')
@@ -337,11 +337,12 @@ if __name__ == '__main__':
     parser.add_argument('--save-thres', type=float, default=0.5, help='number of additional ghost boxes for each detection')
     parser.add_argument('--KF-var-mult', type=float, default=1, help='multiplier of KF variance for ghost matches')
     parser.add_argument('--N', type=int, default=1, help='number of ghost track copies for each unmatched track')
+    parser.add_argument('--shrink-var', type=float, default=1, help='multiplier to the Gaussian variance when sample ghost tracks')
 
     # parser.add_argument('--test-mot17', action='store_true', help='tracking buffer')
     parser.add_argument('--save-images', action='store_true', help='save tracking results (image)')
     parser.add_argument('--save-videos', action='store_true', help='save tracking results (video)')
-    parser.add_argument('--save-debug', action='store_true', help='save tracking results (video)')
+    parser.add_argument('--save-debug', action='store_true', help='save tracking results')
     parser.add_argument('--count-fn', action='store_true', help='count and categorize FN')
     parser.add_argument('--ghost', action='store_true', help='add ghost bounding boxes')
     parser.add_argument('--two-stage', action='store_true', help='include ghost bbox in the additional matching stage')
@@ -354,10 +355,11 @@ if __name__ == '__main__':
     parser.add_argument('--ghost-stats', action='store_true', help='get IoU statistics between all proposed ghosts and FNs')
     parser.add_argument('--save-lt', action='store_true', help='use ghost only for reactivate lost tracks; for each lost track, see if there is a ghost where IoU > threshold')
     parser.add_argument('--ghost-track', action='store_true', help='use ghost track instead ghost detection')
+    parser.add_argument('--include-mean', action='store_true', help='also include mean (i.e. max) when sampling ghost tracks')
 
     opt = parser.parse_args()
     print(opt, end='\n\n')
- 
+
     if opt.dataset == 'mot17_train':
         seqs_str = '''MOT17-02-SDP
                       MOT17-04-SDP
@@ -387,10 +389,17 @@ if __name__ == '__main__':
         data_root = '/hdd/yongxinw/2DMOT2015/train/'
 
     elif opt.dataset == 'mot15_train_unique':
+        # seqs_str = '''ADL-Rundle-6
+        #               ADL-Rundle-8
+        #               KITTI-13
+        #               KITTI-17
+        #               PETS09-S2L1
+        #               TUD-Campus
+        #               TUD-Stadtmitte
+        #               Venice-2
+        #             '''
         seqs_str = '''ADL-Rundle-6
                       ADL-Rundle-8
-                      KITTI-13
-                      KITTI-17
                       PETS09-S2L1
                       TUD-Campus
                       TUD-Stadtmitte
@@ -459,6 +468,6 @@ if __name__ == '__main__':
          # exp_name=opt.weights.split('/')[-2],
          exp_name=opt.dataset,
          show_image=False,
-         save_images=opt.save_images, 
+         save_images=opt.save_images,
          save_videos=opt.save_videos)
 

@@ -88,7 +88,7 @@ def plot_tracking_debug(image, tlwhs, obj_ids, acc_frame, seq, evaluator, scores
 
     text_scale = max(1, image.shape[1] / 1600.)
     text_thickness = 1 if text_scale > 1.1 else 1
-    line_thickness = max(1, int(image.shape[1] / 500.))*2
+    line_thickness = max(1, int(image.shape[1] / 500.))
 
     radius = max(5, int(im_w/140.))
     cv2.putText(im, 'frame: %d fps: %.2f num: %d' % (frame_id, fps, len(tlwhs)),
@@ -105,6 +105,7 @@ def plot_tracking_debug(image, tlwhs, obj_ids, acc_frame, seq, evaluator, scores
 
         # draw MATCH, FP, SWITCH (i.e. boxes that are tracked)
 
+        # import pdb; pdb.set_trace()
         mot_type = acc_frame[acc_frame.HId.eq(obj_id)].Type.values[0]
         color = debug_color(mot_type)
 
