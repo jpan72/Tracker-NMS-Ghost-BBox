@@ -259,6 +259,8 @@ class JDETracker(object):
         update_ghost_feat = opt.update_ghost_feat
         var_multiplier = opt.KF_var_mult
         N = opt.N
+        occ_reason_thres = opt.occ_reason_thres
+        thresholding_occ_reason = opt.thresholding_occ_reason
 
         self.frame_id += 1
         activated_stracks = []
@@ -422,8 +424,6 @@ class JDETracker(object):
         trk_ids = np.arange(len(trk_tlwhs))
         acc = evaluator.eval_frame(self.frame_id, trk_tlwhs, trk_ids, rtn_events=True) # self.frame_id will start from 1
 
-        # print()
-        print(self.frame_id)
         # print(evaluator.acc.mot_events)
 
         if self.frame_id > 1:
@@ -447,15 +447,34 @@ class JDETracker(object):
             # Match unmatched tracks with matched dets
             unmatched_tracks = [r_tracked_stracks[it] for it in u_track]
             dists = matching.iou_distance(unmatched_tracks, detections_g)
-            um_det_matches, u_track, u_detection = matching.linear_assignment(dists, thresh=ghost_iou_ths)
-            # print(um_det_matches)
+            if thresholding_occ_reason:
+                if len(r_tracked_stracks) > 0 and len(detections_g) > 0:
+                    um_det_matches = list(zip(range(len(r_tracked_stracks)), dists.argmin(axis=1)))
+                    dists_min = dists.min(axis=1)
+                    um_det_matches = np.array(um_det_matches)[dists_min <= occ_reason_thres,:]
+                else:
+                    un_det_matches = []
+            else:
+                um_det_matches, u_track, u_detection = matching.linear_assignment(dists, thresh=occ_reason_thres)
+
             map1 = {}
             for um, det in um_det_matches:
                 map1[um] = det
 
             # Match unmatched tracks with FNs
-            dists = matching.iou_distance([trk.tlbr for trk in unmatched_tracks], FN_tlbrs)
-            um_FN_matches, u_track, u_detection = matching.linear_assignment(dists, thresh=ghost_iou_ths)
+            um_tlbrs = [trk.tlbr for trk in unmatched_tracks]
+            dists = matching.iou_distance(um_tlbrs, FN_tlbrs)
+
+            if thresholding_occ_reason:
+                if len(um_tlbrs) > 0 and len(FN_tlbrs) > 0:
+                    um_FN_matches = list(zip(range(len(um_tlbrs)), dists.argmin(axis=1)))
+                    dists_min = dists.min(axis=1)
+                    um_FN_matches = np.array(um_FN_matches)[dists_min <= occ_reason_thres,:]
+                else:
+                    um_FN_matches = []
+            else:
+                um_FN_matches, u_track, u_detection = matching.linear_assignment(dists, thresh=occ_reason_thres)
+
 
             # print(um_FN_matches)
             map2 = {}
@@ -476,7 +495,7 @@ class JDETracker(object):
             save_dir = osp.join(prefix, 'preprocess').replace('/hdd/yongxinw/', '../preprocess-ghost-bbox/')
             if not osp.exists(save_dir):
                 os.makedirs(save_dir)
-            save_path = path.replace('/hdd/yongxinw/', '../preprocess-ghost-bbox/').replace('img1', 'preprocess').replace('.png', '').replace('.jpg', '')
+            save_path = path.replace('/hdd/yongxinw/', '../preprocess-ghost-bbox-HA0.3/').replace('img1', 'preprocess').replace('.png', '').replace('.jpg', '')
 
 
             # Train GPN

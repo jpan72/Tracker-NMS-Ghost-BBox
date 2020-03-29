@@ -366,6 +366,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
     parser.add_argument('--ld', type=float, default=0.5, help='lambda for regression loss')
     parser.add_argument('--lr', type=float, default=0.1, help='GPN learning rate')
+    parser.add_argument('--occ-reason-thres', type=float, default=0.5, help='GPN learning rate')
 
     # parser.add_argument('--test-mot17', action='store_true', help='tracking buffer')
     parser.add_argument('--save-images', action='store_true', help='save tracking results (image)')
@@ -387,6 +388,7 @@ if __name__ == '__main__':
     parser.add_argument('--save-lt', action='store_true',
                         help='use ghost only for reactivate lost tracks; for each lost track, see if there is a ghost where IoU > threshold')
     parser.add_argument('--ghost-track', action='store_true', help='use ghost track instead ghost detection')
+    parser.add_argument('--thresholding-occ-reason', action='store_true', help='using threshold/min-distance for occlusion reasoning when generating GT ghost box')
 
     opt = parser.parse_args()
     print(opt, end='\n\n')
@@ -489,9 +491,6 @@ if __name__ == '__main__':
                       MOT17-14-SDP
                     '''
 
-    elif opt.dataset == 'peds':
-        seqs_str = '''
-        '''
 
     seqs = [seq.strip() for seq in seqs_str.split()]
 

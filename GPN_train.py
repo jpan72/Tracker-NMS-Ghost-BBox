@@ -9,6 +9,7 @@ from utils.utils import *
 from utils.log import logger
 from torchvision.transforms import transforms as T
 from tensorboardX import SummaryWriter
+from datetime import datetime
 
 
 def train(
@@ -99,7 +100,8 @@ def train(
 
     model_info(gpn)
 
-    writer = SummaryWriter('../exp-ghost-bbox')
+    exp_name = f'{datetime.now():%Y-%m-%d-%H:%M%z}'
+    writer = SummaryWriter(osp.join('../exp-ghost-bbox', exp_name))
     t0 = time.time()
     for epoch in range(epochs):
         epoch += start_epoch

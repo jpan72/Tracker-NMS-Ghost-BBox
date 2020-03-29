@@ -413,10 +413,11 @@ def save_weights(self, path, cutoff=-1):
 class GPN(nn.Module):
     def __init__(self):
         super(GPN, self).__init__()
-        self.fc1 = nn.Linear(1024, 1024)
-        self.fc2 = nn.Linear(1024, 1024)
-        self.fc3 = nn.Linear(1024, 1024)
-        self.reg = nn.Linear(1024, 4)
+        self.fc1 = nn.Linear(512, 512)
+        self.fc2 = nn.Linear(512, 512)
+        self.reg = nn.Linear(512, 4)
+
+        self.attention = nn.Linear(1024, 512)
 
         # TODO: add classification layer and CE loss
 
@@ -427,10 +428,12 @@ class GPN(nn.Module):
         det_feat:   bs, 512
         """
 
-        x = torch.cat((track_feat, det_feat), dim=1) # concatenate across channels
+        concatenated_feat = torch.cat((track_feat, det_feat), dim=1) # concatenate across channels
+        att = self.attention(concatenated_feat) # 1024
+
+        x = att * det_feat
         x = self.fc1(x)
         x = self.fc2(x)
-        x = self.fc3(x)
         delta_bbox = self.reg(x)
 
         return delta_bbox
