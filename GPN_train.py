@@ -41,15 +41,21 @@ def train(
     transforms = T.Compose([T.ToTensor()])
     # dataset = JointDataset(dataset_root, trainset_paths, img_size, augment=True, transforms=transforms)
 
-    dataset_root = '../preprocess-ghost-bbox/MOT17/MOT17/train'
+    # dataset_root = '../preprocess-ghost-bbox-HA0.3/MOT17/MOT17/train'
+    dataset_root = '../preprocess-ghost-bbox-th0.6/MOT17/MOT17/train'
     dataset = GhostDataset(dataset_root)
     # dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True,
     #                                          num_workers=8, pin_memory=True, drop_last=True, collate_fn=collate_fn)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=8)
 
+
+    dataset_root_test = '../preprocess-ghost-bbox-th0.6/2DMOT2015/train'
+    dataset_test = GhostDataset(dataset_root_test)
+    dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=batch_size, shuffle=True, num_workers=8)
+
     # Initialize model
     # model = Darknet(cfg_dict, dataset.nID)
-    gpn = GPN().cuda().train()
+    gpn = GPN().cuda()
 
     cutoff = -1  # backbone reaches to cutoff layer
     start_epoch = 0
@@ -85,6 +91,7 @@ def train(
 
     optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, gpn.parameters()), lr=opt.lr, momentum=.9, weight_decay=1e-4)
     smooth_l1_loss = nn.SmoothL1Loss().cuda()
+    smooth_l1_loss_test = nn.SmoothL1Loss(reduction='sum').cuda()
     # model = torch.nn.DataParallel(model)
 
     # # Set scheduler
@@ -104,6 +111,10 @@ def train(
     writer = SummaryWriter(osp.join('../exp-ghost-bbox', exp_name))
     t0 = time.time()
     for epoch in range(epochs):
+
+
+        # training
+        gpn.train()
         epoch += start_epoch
 
         # logger.info(('%8s%12s' + '%10s' * 6) % (
@@ -186,11 +197,55 @@ def train(
         # # Call scheduler.step() after opimizer.step() with pytorch > 1.1.0
         # scheduler.step()
 
+
+        # test
+
+        # gpn.eval()
+        #
+        # loss_test_sum = 0
+        # loss_num_data = 0
+        #
+        # for i, (track_feat, det_feat, target_delta_bbox) in enumerate(dataloader_test):
+        #     loss_num_data += track_feat.size(0)
+        #
+        #     track_feat = track_feat.cuda().float()
+        #     det_feat = det_feat.cuda().float()
+        #     target_delta_bbox = target_delta_bbox.cuda().float()
+        #
+        #     delta_bbox = gpn(track_feat, det_feat)
+        #     loss = smooth_l1_loss_test(delta_bbox, target_delta_bbox)
+        #     loss_test_sum += loss.cpu().detach().numpy()
+        #
+        # loss_test_mean = loss_test_sum / loss_num_data
+        # writer.add_scalar('test/loss', loss_test_mean, n_iter)
+
+
+
+        gpn.eval()
+
+        loss_test_sum = 0
+
+        for i, (track_feat, det_feat, target_delta_bbox) in enumerate(dataloader_test):
+            track_feat = track_feat.cuda().float()
+            det_feat = det_feat.cuda().float()
+            target_delta_bbox = target_delta_bbox.cuda().float()
+
+            delta_bbox = gpn(track_feat, det_feat)
+            print(delta_bbox)
+            print(target_delta_bbox)
+            print()
+            loss = smooth_l1_loss(delta_bbox, target_delta_bbox)
+            loss_test_sum += loss.cpu().detach().numpy()
+
+        loss_test_mean = loss_test_sum / len(dataloader_test)
+        writer.add_scalar('test/loss', loss_test_mean, n_iter)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--epochs', type=int, default=30, help='number of epochs')
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
-    parser.add_argument('--accumulated-batches', type=int, default=1, help='number of batches before optimizer step')
+    parser.add_argument('--accumulated-batches', type=int, default=2, help='number of batches before optimizer step')
     parser.add_argument('--cfg', type=str, default='cfg/yolov3_1088x608.cfg', help='cfg file path')
     parser.add_argument('--data-cfg', type=str, default='cfg/ccmcpe.json', help='coco.data file path')
     parser.add_argument('--resume', action='store_true', help='resume training flag')

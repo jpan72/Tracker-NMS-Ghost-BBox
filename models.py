@@ -410,12 +410,14 @@ def save_weights(self, path, cutoff=-1):
     fp.close()
 
 
+
+# use feature map
+
 class GPN(nn.Module):
     def __init__(self):
         super(GPN, self).__init__()
-        self.fc1 = nn.Linear(512, 512)
-        self.fc2 = nn.Linear(512, 512)
-        self.reg = nn.Linear(512, 4)
+        self.fc1 = nn.Linear(512, 32)
+        self.reg = nn.Linear(32, 4)
 
         self.attention = nn.Linear(1024, 512)
 
@@ -428,15 +430,74 @@ class GPN(nn.Module):
         det_feat:   bs, 512
         """
 
-        concatenated_feat = torch.cat((track_feat, det_feat), dim=1) # concatenate across channels
-        att = self.attention(concatenated_feat) # 1024
+        concatenated_feat = torch.cat((track_feat, det_feat), dim=1) # 1024
+        att = self.attention(concatenated_feat) # 512
 
-        x = att * det_feat
-        x = self.fc1(x)
-        x = self.fc2(x)
-        delta_bbox = self.reg(x)
+        x = att * det_feat # 512
+        x = self.fc1(x) # 512
+        delta_bbox = self.reg(x) # 4
 
         return delta_bbox
+
+# # small network
+
+class GPN(nn.Module):
+    def __init__(self):
+        super(GPN, self).__init__()
+        self.fc1 = nn.Linear(512, 32)
+        self.reg = nn.Linear(32, 4)
+
+        self.attention = nn.Linear(1024, 512)
+
+        # TODO: add classification layer and CE loss
+
+
+    def forward(self, track_feat, det_feat):
+        """
+        track_feat: bs, 512
+        det_feat:   bs, 512
+        """
+
+        concatenated_feat = torch.cat((track_feat, det_feat), dim=1) # 1024
+        att = self.attention(concatenated_feat) # 512
+
+        x = att * det_feat # 512
+        x = self.fc1(x) # 512
+        delta_bbox = self.reg(x) # 4
+
+        return delta_bbox
+
+# # larger network
+
+# class GPN(nn.Module):
+#     def __init__(self):
+#         super(GPN, self).__init__()
+#         self.fc1 = nn.Linear(512, 512)
+#         self.fc2 = nn.Linear(512, 512)
+#         self.reg = nn.Linear(512, 4)
+#
+#         self.attention = nn.Linear(1024, 512)
+#
+#         # TODO: add classification layer and CE loss
+#
+#
+#     def forward(self, track_feat, det_feat):
+#         """
+#         track_feat: bs, 512
+#         det_feat:   bs, 512
+#         """
+#
+#         concatenated_feat = torch.cat((track_feat, det_feat), dim=1) # 1024
+#         att = self.attention(concatenated_feat) # 512
+#
+#         x = att * det_feat # 512
+#         x = self.fc1(x) # 512
+#         x = self.fc2(x) # 512
+#         delta_bbox = self.reg(x) # 4
+#
+#         return delta_bbox
+
+# # even larger network
 
 # class GPN(nn.Module):
 #     def __init__(self):
@@ -468,7 +529,7 @@ class GPN(nn.Module):
 #
 #         return delta_bbox
 
-
+# # deprecated
 
 # class GPN(nn.Module):
 #     def __init__(self):

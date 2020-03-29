@@ -448,12 +448,12 @@ class JDETracker(object):
             unmatched_tracks = [r_tracked_stracks[it] for it in u_track]
             dists = matching.iou_distance(unmatched_tracks, detections_g)
             if thresholding_occ_reason:
-                if len(r_tracked_stracks) > 0 and len(detections_g) > 0:
-                    um_det_matches = list(zip(range(len(r_tracked_stracks)), dists.argmin(axis=1)))
+                if len(unmatched_tracks) > 0 and len(detections_g) > 0:
+                    um_det_matches = list(zip(range(len(unmatched_tracks)), dists.argmin(axis=1)))
                     dists_min = dists.min(axis=1)
                     um_det_matches = np.array(um_det_matches)[dists_min <= occ_reason_thres,:]
                 else:
-                    un_det_matches = []
+                    um_det_matches = []
             else:
                 um_det_matches, u_track, u_detection = matching.linear_assignment(dists, thresh=occ_reason_thres)
 
@@ -492,10 +492,11 @@ class JDETracker(object):
             # save_path = path.replace('images', 'preprocess').replace('.png', '.npy').replace('.jpg', '.npy')
 
             prefix = path.split('img1')[0]
-            save_dir = osp.join(prefix, 'preprocess').replace('/hdd/yongxinw/', '../preprocess-ghost-bbox/')
+            save_dir = osp.join(prefix, 'preprocess').replace('/hdd/yongxinw/', '../preprocess-ghost-bbox-th0.6/')
             if not osp.exists(save_dir):
                 os.makedirs(save_dir)
-            save_path = path.replace('/hdd/yongxinw/', '../preprocess-ghost-bbox-HA0.3/').replace('img1', 'preprocess').replace('.png', '').replace('.jpg', '')
+            dataset_root = '../preprocess-ghost-bbox-th0.6/'
+            save_path = path.replace('/hdd/yongxinw/', dataset_root).replace('img1', 'preprocess').replace('.png', '').replace('.jpg', '')
 
 
             # Train GPN
