@@ -7,6 +7,8 @@ from utils.parse_config import *
 from utils.utils import *
 import time
 import math
+from utils.resnet import resnet50, resnet101, resnet152
+import torch.nn.functional as F
 
 try:
     from utils.syncbn import SyncBN
@@ -243,7 +245,6 @@ class Darknet(nn.Module):
         #img_size = x.shape[-1]
         layer_outputs = []
         output = []
-        conv_count = 0
         conv5_out = None
 
         for i, (module_def, module) in enumerate(zip(self.module_defs, self.module_list)):
@@ -251,10 +252,8 @@ class Darknet(nn.Module):
             if mtype in ['convolutional', 'upsample', 'maxpool']:
                 x = module(x)
 
-                if mtype == 'convolutional':
-                    conv_count += 1
-                    if conv_count == 5:
-                        conv5_out = x
+                if i == 66:
+                    conv5_out = x
 
             elif mtype == 'route':
                 layer_i = [int(x) for x in module_def['layers'].split(',')]
@@ -416,56 +415,97 @@ def save_weights(self, path, cutoff=-1):
 class GPN(nn.Module):
     def __init__(self):
         super(GPN, self).__init__()
-        self.fc1 = nn.Linear(512, 32)
+        self.conv1 = nn.Conv2d(1024, 256, 3, 2, padding=1)
+        self.conv2 = nn.Conv2d(256, 64, 3, 2, padding=1)
+        self.dropout = nn.Dropout2d(0.25)
+        self.fc1 = nn.Linear(64*7*7, 32)
         self.reg = nn.Linear(32, 4)
 
-        self.attention = nn.Linear(1024, 512)
 
         # TODO: add classification layer and CE loss
 
+        self.extractor = resnet50(pretrained=True)
+        for param in self.extractor.parameters():
+            param.requires_grad = False
 
-    def forward(self, track_feat, det_feat):
+
+    def forward(self, track_img, det_img):
         """
         track_feat: bs, 512
         det_feat:   bs, 512
         """
 
-        concatenated_feat = torch.cat((track_feat, det_feat), dim=1) # 1024
-        att = self.attention(concatenated_feat) # 512
 
-        x = att * det_feat # 512
-        x = self.fc1(x) # 512
-        delta_bbox = self.reg(x) # 4
+        track_feat, track_featmap = self.extractor(track_img.permute(0,3,1,2))
+        det_feat, det_featmap = self.extractor(det_img.permute(0,3,1,2))
+
+        concatenated_feat = torch.cat((track_featmap, det_featmap), dim=1) # 1, 1024, 28, 28
+        # import pdb; pdb.set_trace()
+
+        x = self.conv1(concatenated_feat)
+        x = F.relu(x)
+        x = self.conv2(x)
+        x = F.relu(x) # bs, 64, 7, 7
+        x = self.dropout(x)
+        x = torch.flatten(x,1)
+        x = self.fc1(x)
+        x = self.dropout(x)
+        delta_bbox = self.reg(x)
 
         return delta_bbox
+
+
+# # use feature vector
+#
+# class GPN(nn.Module):
+#     def __init__(self):
+#         super(GPN, self).__init__()
+#         self.fc1 = nn.Linear(1024, 256)
+#         self.reg = nn.Linear(256, 4)
+#
+#         # TODO: add classification layer and CE loss
+#
+#
+#     def forward(self, track_feat, det_feat):
+#         """
+#         track_feat: bs, 512
+#         det_feat:   bs, 512
+#         """
+#
+#         concatenated_feat = torch.cat((track_feat, det_feat), dim=1) # 1024
+#         x = self.fc1(concatenated_feat) # 512
+#         delta_bbox = self.reg(x) # 4
+#
+#         return delta_bbox
+
 
 # # small network
 
-class GPN(nn.Module):
-    def __init__(self):
-        super(GPN, self).__init__()
-        self.fc1 = nn.Linear(512, 32)
-        self.reg = nn.Linear(32, 4)
-
-        self.attention = nn.Linear(1024, 512)
-
-        # TODO: add classification layer and CE loss
-
-
-    def forward(self, track_feat, det_feat):
-        """
-        track_feat: bs, 512
-        det_feat:   bs, 512
-        """
-
-        concatenated_feat = torch.cat((track_feat, det_feat), dim=1) # 1024
-        att = self.attention(concatenated_feat) # 512
-
-        x = att * det_feat # 512
-        x = self.fc1(x) # 512
-        delta_bbox = self.reg(x) # 4
-
-        return delta_bbox
+# class GPN(nn.Module):
+#     def __init__(self):
+#         super(GPN, self).__init__()
+#         self.fc1 = nn.Linear(512, 32)
+#         self.reg = nn.Linear(32, 4)
+#
+#         self.attention = nn.Linear(1024, 512)
+#
+#         # TODO: add classification layer and CE loss
+#
+#
+#     def forward(self, track_feat, det_feat):
+#         """
+#         track_feat: bs, 512
+#         det_feat:   bs, 512
+#         """
+#
+#         concatenated_feat = torch.cat((track_feat, det_feat), dim=1) # 1024
+#         att = self.attention(concatenated_feat) # 512
+#
+#         x = att * det_feat # 512
+#         x = self.fc1(x) # 512
+#         delta_bbox = self.reg(x) # 4
+#
+#         return delta_bbox
 
 # # larger network
 

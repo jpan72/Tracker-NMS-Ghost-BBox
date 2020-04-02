@@ -21,7 +21,7 @@ from .basetrack import BaseTrack, TrackState
 class STrack(BaseTrack):
     shared_kalman = KalmanFilter()
 
-    def __init__(self, tlwh, score, temp_feat, buffer_size=30):
+    def __init__(self, tlwh, score, temp_feat, buffer_size=30, img_patch=None):
 
         # wait activate
         self._tlwh = np.asarray(tlwh, dtype=np.float)
@@ -37,6 +37,8 @@ class STrack(BaseTrack):
         self.features = deque([], maxlen=buffer_size)
         self.alpha = 0.9
         self.ghost = False
+        
+        self.img_patch = img_patch
     
     def update_features(self, feat):
         feat /= np.linalg.norm(feat)
@@ -127,6 +129,7 @@ class STrack(BaseTrack):
         self.score = new_track.score
         if update_feature:
             self.update_features(new_track.curr_feat)
+        self.img_patch = new_track.img_patch
 
 
     def update_ghost(self, ghost_tlwh, frame_id, update_feature=True, var_multiplier=1):
@@ -261,6 +264,7 @@ class JDETracker(object):
         N = opt.N
         occ_reason_thres = opt.occ_reason_thres
         thresholding_occ_reason = opt.thresholding_occ_reason
+        use_featmap = opt.use_featmap
 
         self.frame_id += 1
         activated_stracks = []
@@ -273,20 +277,61 @@ class JDETracker(object):
 
             t1 = time.time()
             ''' Step 1: Network forward, get detections & embeddings'''
-            # with torch.no_grad():
-            pred, conv5_out = self.model(im_blob)
-            pred = pred[pred[:, :, 4] > self.opt.conf_thres]
-            if len(pred) > 0:
-                dets = non_max_suppression(pred.unsqueeze(0), self.opt.conf_thres,
-                                           self.opt.nms_thres)[0]
-                scale_coords(self.opt.img_size, dets[:, :4], img0.shape).round()
-                # dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
-                dets, embs = dets[:, :5].cpu().detach().numpy(), dets[:, 6:].cpu().detach().numpy()
-                '''Detections'''
-                detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30) for
-                              (tlbrs, f) in zip(dets, embs)]
+
+            if use_featmap:
+                with torch.no_grad():
+                    h0, w0, _ = img0.shape
+                    pred, conv5_out = self.model(im_blob)
+                    # import pdb; pdb.set_trace()
+                    pred = pred[pred[:, :, 4] > self.opt.conf_thres]
+                    conv5_out = conv5_out
+                    if len(pred) > 0:
+                        dets = non_max_suppression(pred.unsqueeze(0), self.opt.conf_thres,
+                                                   self.opt.nms_thres)[0]
+                        scale_coords(self.opt.img_size, dets[:, :4], img0.shape).round()
+                        # dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
+                        dets, embs = dets[:, :5].cpu().detach().numpy(), dets[:, 6:].cpu().detach().numpy()
+                        bbox = np.rint(dets[:,:4]).astype(int)
+                        bbox_x, bbox_y, bbox_w, bbox_h = bbox[:,0], bbox[:,1], bbox[:,2], bbox[:,3]
+
+                        bbox_x[bbox_x > w0] = w0
+                        bbox_x[bbox_x < 0] = 0
+                        bbox_y[bbox_y > h0] = h0
+                        bbox_y[bbox_y < 0] = 0
+
+                        h_rs = 224
+                        w_rs = 224
+                        img_patches = []
+                        for x,y,w,h in zip(bbox_x, bbox_y, bbox_w, bbox_h):
+                            tmp = img0[y:y+h, x:x+w, :]
+                            tmp = np.ascontiguousarray(tmp)
+                            import cv2
+                            tmp = cv2.resize(tmp, (h_rs, w_rs))
+                            img_patches.append(tmp)
+
+                        # img_patches = np.stack(img_patches)
+
+                        '''Detections'''
+                        detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30, p) for
+                                      (tlbrs, f, p) in zip(dets, embs, img_patches)]
+                    else:
+                        detections = []
+
             else:
-                detections = []
+                with torch.no_grad():
+                    pred, conv5_out = self.model(im_blob)
+                    pred = pred[pred[:, :, 4] > self.opt.conf_thres]
+                    if len(pred) > 0:
+                        dets = non_max_suppression(pred.unsqueeze(0), self.opt.conf_thres,
+                                                   self.opt.nms_thres)[0]
+                        scale_coords(self.opt.img_size, dets[:, :4], img0.shape).round()
+                        # dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
+                        dets, embs = dets[:, :5].cpu().detach().numpy(), dets[:, 6:].cpu().detach().numpy()
+                        '''Detections'''
+                        detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30) for
+                                      (tlbrs, f) in zip(dets, embs)]
+                    else:
+                        detections = []
 
             ''' Add newly detected tracklets to tracked_stracks'''
             unconfirmed = []
@@ -492,10 +537,11 @@ class JDETracker(object):
             # save_path = path.replace('images', 'preprocess').replace('.png', '.npy').replace('.jpg', '.npy')
 
             prefix = path.split('img1')[0]
-            save_dir = osp.join(prefix, 'preprocess').replace('/hdd/yongxinw/', '../preprocess-ghost-bbox-th0.6/')
+            save_dir = osp.join(prefix, 'preprocess').replace('/hdd/yongxinw/', '../preprocess-ghost-bbox-th0.6-map/')
             if not osp.exists(save_dir):
                 os.makedirs(save_dir)
-            dataset_root = '../preprocess-ghost-bbox-th0.6/'
+            # dataset_root = '../preprocess-ghost-bbox-th0.6/'
+            dataset_root = '../preprocess-ghost-bbox-th0.6-map/'
             save_path = path.replace('/hdd/yongxinw/', dataset_root).replace('img1', 'preprocess').replace('.png', '').replace('.jpg', '')
 
 
@@ -522,11 +568,14 @@ class JDETracker(object):
 
                 det = detections_g[ind_det]
                 target_delta_bbox = FN_tlwhs[ind_FN] - track.mean[:4]
-                print(target_delta_bbox)
+                # print(target_delta_bbox)
 
                 if abs(target_delta_bbox[0]) > 100 or abs(target_delta_bbox[1]) > 100/1088*608:
                     continue
-                np.savez(save_path, track_feat=track.smooth_feat, det_feat=det.smooth_feat, target_delta_bbox=target_delta_bbox)
+                if use_featmap:
+                    np.savez(save_path, track_feat=track.img_patch, det_feat=det.img_patch, target_delta_bbox=target_delta_bbox)
+                else:
+                    np.savez(save_path, track_feat=track.smooth_feat, det_feat=det.smooth_feat, target_delta_bbox=target_delta_bbox)
 
 
                 #

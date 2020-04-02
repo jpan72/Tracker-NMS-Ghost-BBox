@@ -11,6 +11,7 @@ from torchvision.transforms import transforms as T
 from tensorboardX import SummaryWriter
 from datetime import datetime
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 def train(
         cfg,
@@ -42,14 +43,16 @@ def train(
     # dataset = JointDataset(dataset_root, trainset_paths, img_size, augment=True, transforms=transforms)
 
     # dataset_root = '../preprocess-ghost-bbox-HA0.3/MOT17/MOT17/train'
-    dataset_root = '../preprocess-ghost-bbox-th0.6/MOT17/MOT17/train'
+    # dataset_root = '../preprocess-ghost-bbox-th0.6/MOT17/MOT17/train'
+    dataset_root = '../preprocess-ghost-bbox-th0.6-map/MOT17/MOT17/train'
     dataset = GhostDataset(dataset_root)
     # dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True,
     #                                          num_workers=8, pin_memory=True, drop_last=True, collate_fn=collate_fn)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=8)
 
 
-    dataset_root_test = '../preprocess-ghost-bbox-th0.6/2DMOT2015/train'
+    # dataset_root_test = '../preprocess-ghost-bbox-th0.6/2DMOT2015/train'
+    dataset_root_test = '../preprocess-ghost-bbox-th0.6-map/2DMOT2015/train'
     dataset_test = GhostDataset(dataset_root_test)
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=batch_size, shuffle=True, num_workers=8)
 

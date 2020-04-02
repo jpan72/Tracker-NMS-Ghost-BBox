@@ -22,7 +22,7 @@ from utils.datasets import JointDataset, collate_fn
 from utils.utils import *
 from models import *
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "2"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 
 def write_results(filename, results, data_type, dataset):
@@ -389,6 +389,7 @@ if __name__ == '__main__':
                         help='use ghost only for reactivate lost tracks; for each lost track, see if there is a ghost where IoU > threshold')
     parser.add_argument('--ghost-track', action='store_true', help='use ghost track instead ghost detection')
     parser.add_argument('--thresholding-occ-reason', action='store_true', help='using threshold/min-distance for occlusion reasoning when generating GT ghost box')
+    parser.add_argument('--use-featmap', action='store_true', help='use feature map for GRN, instead of feature vector')
 
     opt = parser.parse_args()
     print(opt, end='\n\n')
