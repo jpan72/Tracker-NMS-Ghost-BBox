@@ -39,13 +39,20 @@ def train(
     img_size = [int(cfg_dict[0]['width']), int(cfg_dict[0]['height'])]
 
     # Get dataloader
-    transforms = T.Compose([T.ToTensor()])
+    if opt.load_image:
+        transforms = transforms.Compose([
+            transforms.Resize(256),
+            transforms.ToTensor(),
+            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ])
+    else:
+        transforms = T.Compose([T.ToTensor()])
     # dataset = JointDataset(dataset_root, trainset_paths, img_size, augment=True, transforms=transforms)
 
     # dataset_root = '../preprocess-ghost-bbox-HA0.3/MOT17/MOT17/train'
     # dataset_root = '../preprocess-ghost-bbox-th0.6/MOT17/MOT17/train'
     dataset_root = '../preprocess-ghost-bbox-th0.6-map/MOT17/MOT17/train'
-    dataset = GhostDataset(dataset_root)
+    dataset = GhostDataset(dataset_root, transforms)
     # dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True,
     #                                          num_workers=8, pin_memory=True, drop_last=True, collate_fn=collate_fn)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=8)
@@ -53,7 +60,7 @@ def train(
 
     # dataset_root_test = '../preprocess-ghost-bbox-th0.6/2DMOT2015/train'
     dataset_root_test = '../preprocess-ghost-bbox-th0.6-map/2DMOT2015/train'
-    dataset_test = GhostDataset(dataset_root_test)
+    dataset_test = GhostDataset(dataset_root_test, transforms)
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=batch_size, shuffle=True, num_workers=8)
 
     # Initialize model
@@ -93,6 +100,7 @@ def train(
     #     optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, model.parameters()), lr=opt.lr, momentum=.9, weight_decay=1e-4)
 
     optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, gpn.parameters()), lr=opt.lr, momentum=.9, weight_decay=1e-4)
+    # optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, gpn.parameters()), lr=0.0001)
     smooth_l1_loss = nn.SmoothL1Loss().cuda()
     smooth_l1_loss_test = nn.SmoothL1Loss(reduction='sum').cuda()
     # model = torch.nn.DataParallel(model)
@@ -256,6 +264,7 @@ if __name__ == '__main__':
     parser.add_argument('--test-interval', type=int, default=9, help='test interval')
     parser.add_argument('--lr', type=float, default=1e-2, help='init lr')
     parser.add_argument('--unfreeze-bn', action='store_true', help='unfreeze bn')
+    parser.add_argument('--load-image', action='store_true', help='load image instead of features')
     opt = parser.parse_args()
 
     init_seeds()

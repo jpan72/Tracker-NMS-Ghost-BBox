@@ -409,7 +409,7 @@ class JointDataset(LoadImagesAndLabels):  # for training
 
 
 class GhostDataset(Dataset):
-    def __init__(self, dataset_root):
+    def __init__(self, dataset_root, transforms):
         self.npz_paths = {}
         count = 0
         seqs = os.listdir(dataset_root)
@@ -420,6 +420,7 @@ class GhostDataset(Dataset):
                 npz_path = osp.join(seq_path, npz)
                 self.npz_paths[count] = npz_path
                 count += 1
+        self.transforms = transforms
 
 
     def __len__(self):
@@ -429,4 +430,4 @@ class GhostDataset(Dataset):
     def __getitem__(self, idx):
         path = self.npz_paths[idx]
         data = np.load(path)
-        return data['track_feat'], data['det_feat'], data['target_delta_bbox']
+        return self.transforms(data['track_feat']), self.transforms(data['det_feat']), data['target_delta_bbox']

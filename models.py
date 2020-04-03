@@ -9,6 +9,7 @@ import time
 import math
 from utils.resnet import resnet50, resnet101, resnet152
 import torch.nn.functional as F
+from utils.alexnet import alexnet
 
 try:
     from utils.syncbn import SyncBN
@@ -410,21 +411,24 @@ def save_weights(self, path, cutoff=-1):
 
 
 
-# use feature map
+# use feature map, alexnet
 
 class GPN(nn.Module):
     def __init__(self):
         super(GPN, self).__init__()
-        self.conv1 = nn.Conv2d(1024, 256, 3, 2, padding=1)
-        self.conv2 = nn.Conv2d(256, 64, 3, 2, padding=1)
-        self.dropout = nn.Dropout2d(0.25)
-        self.fc1 = nn.Linear(64*7*7, 32)
-        self.reg = nn.Linear(32, 4)
-
+        self.classifier = nn.Sequential(
+            nn.Dropout(),
+            nn.Linear(2 * 256 * 6 * 6, 4096),
+            nn.ReLU(inplace=True),
+            nn.Dropout(),
+            nn.Linear(4096, 4096),
+            nn.ReLU(inplace=True),
+            nn.Linear(4096, 4),
+        )
 
         # TODO: add classification layer and CE loss
 
-        self.extractor = resnet50(pretrained=True)
+        self.extractor = alexnet(pretrained=True)
         for param in self.extractor.parameters():
             param.requires_grad = False
 
@@ -434,25 +438,113 @@ class GPN(nn.Module):
         track_feat: bs, 512
         det_feat:   bs, 512
         """
+        #
+        # track_feat, track_featmap = self.extractor(track_img.permute(0,3,1,2)) # track_featmap: 1, 256, 6, 6
+        # det_feat, det_featmap = self.extractor(det_img.permute(0,3,1,2))
 
+        track_feat, track_featmap = self.extractor(track_img) # track_featmap: 1, 256, 6, 6
+        det_feat, det_featmap = self.extractor(det_img)
 
-        track_feat, track_featmap = self.extractor(track_img.permute(0,3,1,2))
-        det_feat, det_featmap = self.extractor(det_img.permute(0,3,1,2))
+        concatenated_feat = torch.cat((track_featmap, det_featmap), dim=1) # 1, 512, 6, 6
 
-        concatenated_feat = torch.cat((track_featmap, det_featmap), dim=1) # 1, 1024, 28, 28
+        x = torch.flatten(concatenated_feat, 1)
+        delta_bbox = self.classifier(x)
+
         # import pdb; pdb.set_trace()
-
-        x = self.conv1(concatenated_feat)
-        x = F.relu(x)
-        x = self.conv2(x)
-        x = F.relu(x) # bs, 64, 7, 7
-        x = self.dropout(x)
-        x = torch.flatten(x,1)
-        x = self.fc1(x)
-        x = self.dropout(x)
-        delta_bbox = self.reg(x)
+        print(np.isnan(track_img.cpu().detach().numpy()).any())
 
         return delta_bbox
+
+
+# # use feature map, resnet
+#
+# class GPN(nn.Module):
+#     def __init__(self):
+#         super(GPN, self).__init__()
+#         self.conv1 = nn.Conv2d(1024, 512, 3, 2, padding=1)
+#         self.conv2 = nn.Conv2d(512, 256, 3, 2, padding=1)
+#         self.dropout = nn.Dropout2d(0.25)
+#         self.fc1 = nn.Linear(256*49, 4096)
+#         self.fc2 = nn.Linear(4096, 4096)
+#         self.reg = nn.Linear(4096, 4)
+#
+#
+#         # TODO: add classification layer and CE loss
+#
+#         self.extractor = resnet50(pretrained=True)
+#         for param in self.extractor.parameters():
+#             param.requires_grad = False
+#
+#
+#     def forward(self, track_img, det_img):
+#         """
+#         track_feat: bs, 512
+#         det_feat:   bs, 512
+#         """
+#
+#
+#         track_feat, track_featmap = self.extractor(track_img)
+#         det_feat, det_featmap = self.extractor(det_img)
+#
+#         concatenated_feat = torch.cat((track_featmap, det_featmap), dim=1) # 1, 1024, 28, 28
+#         # import pdb; pdb.set_trace()
+#
+#         x = self.conv1(concatenated_feat)
+#         x = F.relu(x)
+#         x = self.conv2(x)
+#         x = F.relu(x) # bs, 64, 7, 7
+#         x = self.dropout(x)
+#         x = torch.flatten(x,1)
+#         x = self.fc1(x)
+#         x = self.dropout(x)
+#         delta_bbox = self.reg(x)
+#
+#         return delta_bbox
+
+
+# # use feature map, resnet
+#
+# class GPN(nn.Module):
+#     def __init__(self):
+#         super(GPN, self).__init__()
+#         self.conv1 = nn.Conv2d(1024, 256, 3, 2, padding=1)
+#         self.conv2 = nn.Conv2d(256, 64, 3, 2, padding=1)
+#         self.dropout = nn.Dropout2d(0.25)
+#         self.fc1 = nn.Linear(64*7*7, 32)
+#         self.reg = nn.Linear(32, 4)
+#
+#
+#         # TODO: add classification layer and CE loss
+#
+#         self.extractor = resnet50(pretrained=True)
+#         for param in self.extractor.parameters():
+#             param.requires_grad = False
+#
+#
+#     def forward(self, track_img, det_img):
+#         """
+#         track_feat: bs, 512
+#         det_feat:   bs, 512
+#         """
+#
+#
+#         track_feat, track_featmap = self.extractor(track_img.permute(0,3,1,2))
+#         det_feat, det_featmap = self.extractor(det_img.permute(0,3,1,2))
+#
+#         concatenated_feat = torch.cat((track_featmap, det_featmap), dim=1) # 1, 1024, 28, 28
+#         # import pdb; pdb.set_trace()
+#
+#         x = self.conv1(concatenated_feat)
+#         x = F.relu(x)
+#         x = self.conv2(x)
+#         x = F.relu(x) # bs, 64, 7, 7
+#         x = self.dropout(x)
+#         x = torch.flatten(x,1)
+#         x = self.fc1(x)
+#         x = self.dropout(x)
+#         delta_bbox = self.reg(x)
+#
+#         return delta_bbox
 
 
 # # use feature vector

@@ -2,12 +2,12 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="e1771156-923e-40ef-8431-6f3d133ceaed" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/utils/resnet.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/alexnet.py" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/utils/caffenet.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/GPN_preprocess.py" beforeDir="false" afterPath="$PROJECT_DIR$/GPN_preprocess.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/GPN_train.py" beforeDir="false" afterPath="$PROJECT_DIR$/GPN_train.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/models.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tracker/preprocess_multitracker.py" beforeDir="false" afterPath="$PROJECT_DIR$/tracker/preprocess_multitracker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/datasets.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/datasets.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -102,7 +102,14 @@
       <option name="project" value="LOCAL" />
       <updated>1585518643458</updated>
     </task>
-    <option name="localTasksCounter" value="6" />
+    <task id="LOCAL-00006" summary="add option to use feature map for GRN">
+      <created>1585811006521</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1585811006521</updated>
+    </task>
+    <option name="localTasksCounter" value="7" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -114,7 +121,8 @@
     <MESSAGE value="remove photos and videos" />
     <MESSAGE value="add thresholding option for occlusion reasoning when generating GT ghost box" />
     <MESSAGE value="add test GRN code and occlusion reasoning options" />
-    <option name="LAST_COMMIT_MESSAGE" value="add test GRN code and occlusion reasoning options" />
+    <MESSAGE value="add option to use feature map for GRN" />
+    <option name="LAST_COMMIT_MESSAGE" value="add option to use feature map for GRN" />
   </component>
   <component name="WindowStateProjectService">
     <state x="487" y="-891" key="#Deployment" timestamp="1583297330880">
@@ -129,19 +137,19 @@
       <screen x="-285" y="-1057" width="1920" height="1057" />
     </state>
     <state x="509" y="-875" width="777" height="636" key="#com.intellij.openapi.keymap.impl.ui.EditKeymapsDialog/0.23.1280.720/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583710700598" />
-    <state x="-949" y="-1057" width="1920" height="1057" key="CommitChangelistDialog2" timestamp="1585518643228">
+    <state x="-949" y="-1057" width="1920" height="1057" key="CommitChangelistDialog2" timestamp="1585811006061">
       <screen x="-949" y="-1057" width="1920" height="1057" />
     </state>
-    <state x="-949" y="-1057" width="1920" height="1057" key="CommitChangelistDialog2/0.23.1245.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1585518643228" />
+    <state x="-949" y="-1057" width="1920" height="1057" key="CommitChangelistDialog2/0.23.1245.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1585811006061" />
     <state x="123" y="23" key="CommitChangelistDialog2/0.23.1245.777@0.23.1245.777" timestamp="1585358959737" />
     <state x="-152" y="-1057" key="CommitChangelistDialog2/0.23.1249.777/-342.-1057.1920.1057@-342.-1057.1920.1057" timestamp="1584321757796" />
     <state x="-152" y="-1057" width="1685" height="1057" key="CommitChangelistDialog2/0.23.1280.720/-342.-1057.1920.1057@-342.-1057.1920.1057" timestamp="1584045635977" />
     <state x="464" y="-954" width="1171" height="896" key="CommitChangelistDialog2/0.23.1280.777/-285.-1057.1920.1000@-285.-1057.1920.1000" timestamp="1583389560306" />
     <state x="463" y="-954" key="CommitChangelistDialog2/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583290273710" />
-    <state x="-425" y="-957" width="1296" height="801" key="DiffContextDialog" timestamp="1585518613907">
+    <state x="-425" y="-957" width="1296" height="801" key="DiffContextDialog" timestamp="1585810986063">
       <screen x="-949" y="-1057" width="1920" height="1057" />
     </state>
-    <state x="-425" y="-957" key="DiffContextDialog/0.23.1245.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1585518613907" />
+    <state x="-425" y="-957" key="DiffContextDialog/0.23.1245.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1585810986063" />
     <state x="239" y="-957" width="1296" height="801" key="DiffContextDialog/0.23.1280.721/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583297516299" />
     <state x="239" y="-957" width="1296" height="801" key="DirDiffDialog" timestamp="1583297516299">
       <screen x="-285" y="-1057" width="1920" height="1057" />
@@ -159,10 +167,10 @@
     <state x="396" y="-890" key="SettingsEditor/0.23.1280.721/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583297283473" />
     <state x="395" y="-890" key="SettingsEditor/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583288958933" />
     <state x="395" y="-899" key="SettingsEditor/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583290816251" />
-    <state x="-263" y="-816" key="Vcs.Push.Dialog.v2" timestamp="1585518645114">
+    <state x="-263" y="-816" key="Vcs.Push.Dialog.v2" timestamp="1585811008660">
       <screen x="-949" y="-1057" width="1920" height="1057" />
     </state>
-    <state x="-263" y="-816" key="Vcs.Push.Dialog.v2/0.23.1245.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1585518645114" />
+    <state x="-263" y="-816" key="Vcs.Push.Dialog.v2/0.23.1245.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1585811008660" />
     <state x="445" y="200" key="Vcs.Push.Dialog.v2/0.23.1245.777@0.23.1245.777" timestamp="1585358962817" />
     <state x="430" y="-816" key="Vcs.Push.Dialog.v2/0.23.1249.777/-342.-1057.1920.1057@-342.-1057.1920.1057" timestamp="1584321763619" />
     <state x="487" y="-816" key="Vcs.Push.Dialog.v2/0.23.1280.720/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583710705969" />
