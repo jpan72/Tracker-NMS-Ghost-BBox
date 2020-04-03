@@ -99,8 +99,8 @@ def train(
     #     # Set optimizer
     #     optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, model.parameters()), lr=opt.lr, momentum=.9, weight_decay=1e-4)
 
-    optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, gpn.parameters()), lr=opt.lr, momentum=.9, weight_decay=1e-4)
-    # optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, gpn.parameters()), lr=0.0001)
+    # optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, gpn.parameters()), lr=opt.lr, momentum=.9, weight_decay=1e-4)
+    optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, gpn.parameters()), lr=0.0001)
     smooth_l1_loss = nn.SmoothL1Loss().cuda()
     smooth_l1_loss_test = nn.SmoothL1Loss(reduction='sum').cuda()
     # model = torch.nn.DataParallel(model)
