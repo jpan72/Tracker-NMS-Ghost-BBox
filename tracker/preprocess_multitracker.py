@@ -471,6 +471,7 @@ class JDETracker(object):
 
         # print(evaluator.acc.mot_events)
 
+        FN_tlbrs_selected = []
         if self.frame_id > 1:
 
             acc_frame = evaluator.acc.mot_events.loc[self.frame_id-1]
@@ -525,6 +526,16 @@ class JDETracker(object):
             map2 = {}
             for um, FN in um_FN_matches:
                 map2[um] = FN
+            FN_tlbrs_selected = [FN_tlbrs[j] for (_, j) in um_FN_matches]
+
+
+
+            if len(um_FN_matches) > 0:
+                # import pdb; pdb.set_trace()
+                print()
+                print('! inside tracker:')
+                print(self.frame_id)
+                print(FN_tlbrs_selected)
 
             um1 = [x[0] for x in um_det_matches]
             um2 = [x[0] for x in um_FN_matches]
@@ -537,11 +548,13 @@ class JDETracker(object):
             # save_path = path.replace('images', 'preprocess').replace('.png', '.npy').replace('.jpg', '.npy')
 
             prefix = path.split('img1')[0]
-            save_dir = osp.join(prefix, 'preprocess').replace('/hdd/yongxinw/', '../preprocess-ghost-bbox-th0.6-map/')
+            if opt.use_featmap:
+                dataset_root = '../preprocess-ghost-bbox-th{}-map/'.format(opt.occ_reason_thres)
+            else:
+                dataset_root = '../preprocess-ghost-bbox-th0.6/'
+            save_dir = osp.join(prefix, 'preprocess').replace('/hdd/yongxinw/', dataset_root)
             if not osp.exists(save_dir):
                 os.makedirs(save_dir)
-            # dataset_root = '../preprocess-ghost-bbox-th0.6/'
-            dataset_root = '../preprocess-ghost-bbox-th0.6-map/'
             save_path = path.replace('/hdd/yongxinw/', dataset_root).replace('img1', 'preprocess').replace('.png', '').replace('.jpg', '')
 
 
@@ -570,8 +583,8 @@ class JDETracker(object):
                 target_delta_bbox = FN_tlwhs[ind_FN] - track.mean[:4]
                 # print(target_delta_bbox)
 
-                if abs(target_delta_bbox[0]) > 100 or abs(target_delta_bbox[1]) > 100/1088*608:
-                    continue
+                # if abs(target_delta_bbox[0]) > 100 or abs(target_delta_bbox[1]) > 100/1088*608:
+                #     continue
                 if use_featmap:
                     np.savez(save_path, track_feat=track.img_patch, det_feat=det.img_patch, target_delta_bbox=target_delta_bbox)
                 else:
@@ -611,6 +624,8 @@ class JDETracker(object):
 
         if opt.ghost_stats:
             return output_stracks, n_iter, last_ghosts, ghost_match_iou
+        if opt.vis_FN:
+            return output_stracks, n_iter, FN_tlbrs_selected
         return output_stracks, n_iter
 
     def update(self, im_blob, img0, opt, evaluator, writer, n_iter, path):

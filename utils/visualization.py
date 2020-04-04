@@ -179,6 +179,69 @@ def count_fn_debug(image, tlwhs, obj_ids, acc_frame, seq, evaluator, u8scores=No
     return det_area_sum_frame, det_count_frame, fn_areas_frame
 
 
+def plot_FN(image, tlwhs, obj_ids, acc_frame, seq, evaluator, scores=None, frame_id=0, fps=0., ids2=None, FN_tlbrs_selected=None):
+
+    im = np.ascontiguousarray(np.copy(image))
+    im_h, im_w = im.shape[:2]
+
+    text_scale = max(1, image.shape[1] / 1600.)
+    text_thickness = 1 if text_scale > 1.1 else 1
+    line_thickness = max(1, int(image.shape[1] / 500.))*2
+
+    radius = max(5, int(im_w/140.))
+    cv2.putText(im, 'frame: %d fps: %.2f num: %d' % (frame_id, fps, len(tlwhs)),
+                (0, int(15 * text_scale)), cv2.FONT_HERSHEY_PLAIN, text_scale, (0, 0, 255), thickness=2)
+
+    # draw match, FP, SWITCH
+    for i, tlwh in enumerate(tlwhs):
+        x1, y1, w, h = tlwh
+        intbox = tuple(map(int, (x1, y1, x1 + w, y1 + h)))
+        obj_id = int(obj_ids[i])
+        id_text = '{}'.format(int(obj_id))
+        if ids2 is not None:
+            id_text = id_text + ', {}'.format(int(ids2[i]))
+        _line_thickness = 1 if obj_id <= 0 else line_thickness
+
+        # draw MATCH, FP, SWITCH (i.e. boxes that are tracked)
+
+        # mot_type = acc_frame[acc_frame.HId.eq(obj_id)].Type.values[0]
+        # color = debug_color(mot_type)
+
+        cv2.rectangle(im, intbox[0:2], intbox[2:4], color=(255,0,0), thickness=int(line_thickness/2))
+
+        # if mot_type == 'FP':
+        #     cv2.rectangle(im, intbox[0:2], intbox[2:4], color=color, thickness=int(line_thickness/2))
+        # else:
+        #     cv2.rectangle(im, intbox[0:2], intbox[2:4], color=color, thickness=line_thickness)
+        cv2.putText(im, id_text, (intbox[0], intbox[1] + 30), cv2.FONT_HERSHEY_PLAIN, text_scale, (0, 0, 255),
+                    thickness=text_thickness)
+
+    # draw FN and selected FN
+
+    gt_objs = evaluator.gt_frame_dict.get(frame_id+1, [])
+    gt_tlwhs, gt_ids = unzip_objs(gt_objs)[:2]
+
+    miss_rows = acc_frame[acc_frame.Type.eq('MISS')]
+    miss_OIds = miss_rows.OId.values
+    for miss_OId in miss_OIds:
+
+        x1, y1, w, h = gt_tlwhs[gt_ids==miss_OId][0] # 2d array -> 1d array
+        intbox = tuple(map(int, (x1, y1, x1 + w, y1 + h)))
+        color = debug_color('MISS')
+
+        cv2.rectangle(im, intbox[0:2], intbox[2:4], color=color, thickness=line_thickness)
+        cv2.putText(im, '{}'.format(miss_OId), (intbox[0], intbox[1] + 30), cv2.FONT_HERSHEY_PLAIN, text_scale, (0, 0, 255),
+                    thickness=text_thickness)
+
+    for i, tlbr in enumerate(FN_tlbrs_selected):
+        x1, y1, x2, y2 = tlbr
+        intbox = tuple(map(int, (x1, y1, x2, y2)))
+        print(intbox)
+        cv2.rectangle(im, intbox[0:2], intbox[2:4], color=(0, 140, 255), thickness=int(line_thickness)) # orange
+
+
+    return im
+
 def get_overlap(ghost_tlwhs, acc_frame, seq, evaluator, frame_id=0):
 
     gt_objs = evaluator.gt_frame_dict.get(frame_id+1, [])

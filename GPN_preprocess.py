@@ -49,7 +49,7 @@ def write_results(filename, results, data_type, dataset):
     logger.info('save results to {}'.format(filename))
 
 
-def eval_seq(opt, gpn, dataloader, data_type, result_filename, evaluator, writer, n_iter, save_dir=None, show_image=True, frame_rate=30):
+def eval_seq(opt, dataloader, data_type, result_filename, evaluator, writer, n_iter, save_dir=None, show_image=True, frame_rate=30):
     if save_dir:
         mkdir_if_missing(save_dir)
     tracker = JDETracker(opt, frame_rate=frame_rate, train=False)
@@ -73,7 +73,8 @@ def eval_seq(opt, gpn, dataloader, data_type, result_filename, evaluator, writer
             ghost_tlwhs = [g.tlwh for g in ghosts]
             ghost_sequence.append((ghost_tlwhs, frame_id))
             ghost_match_ious.extend(ghost_match_iou)
-
+        elif opt.vis_FN:
+            online_targets, n_iter, FN_tlbrs_selected = tracker.update(blob, img0, opt, evaluator, writer, n_iter, path)
         else:
             online_targets, n_iter = tracker.update(blob, img0, opt, evaluator, writer, n_iter, path)
 
@@ -103,11 +104,16 @@ def eval_seq(opt, gpn, dataloader, data_type, result_filename, evaluator, writer
         if opt.save_debug or opt.count_fn:
             plot_arguments.append((img0, online_tlwhs, online_ids, frame_id, 1. / timer.average_time))
 
+        if opt.vis_FN:
+            plot_arguments.append((img0, online_tlwhs, online_ids, frame_id, 1. / timer.average_time, FN_tlbrs_selected))
+
         frame_id += 1
 
     # save results
     write_results(result_filename, results, data_type, opt.dataset)
     if opt.save_debug or opt.count_fn:
+        return frame_id, timer.average_time, timer.calls, n_iter, plot_arguments
+    elif opt.vis_FN:
         return frame_id, timer.average_time, timer.calls, n_iter, plot_arguments
     if opt.ghost_stats:
         return frame_id, timer.average_time, timer.calls, n_iter, ghost_sequence, ghost_match_ious
@@ -147,8 +153,6 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batch_size, shuffle=True,
                                              num_workers=8, pin_memory=True, drop_last=True, collate_fn=collate_fn)
 
-    gpn = GPN().cuda().train()
-
     writer = SummaryWriter('../exp-ghost-bbox')
     n_iter = 0
 
@@ -178,15 +182,21 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             frame_rate = 30
 
         evaluator = Evaluator(data_root, seq, data_type)
+        # import pdb; pdb.set_trace()
         if opt.save_debug or opt.count_fn:
-            nf, ta, tc, plot_arguments, n_iter = eval_seq(opt, dataloader, data_type, result_filename, evaluator, writer, n_iter,
+            nf, ta, tc, n_iter, plot_arguments = eval_seq(opt, dataloader, data_type, result_filename, evaluator, writer, n_iter,
                                                   save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
-        if opt.ghost_stats:
+        elif opt.vis_FN:
+            print('here')
+            nf, ta, tc, n_iter, plot_arguments = eval_seq(opt, dataloader, data_type, result_filename, evaluator, writer, n_iter,
+                                                  save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
+            print('after')
+        elif opt.ghost_stats:
             nf, ta, tc, n_iter, ghost_sequence, ghost_match_ious = eval_seq(opt, gpn, dataloader, data_type, result_filename, evaluator, writer, n_iter,
                                                                     save_dir=output_dir, show_image=show_image,
                                                                     frame_rate=frame_rate)
         else:
-            nf, ta, tc, n_iter = eval_seq(opt, gpn, dataloader, data_type, result_filename, evaluator, writer, n_iter,
+            nf, ta, tc, n_iter = eval_seq(opt, dataloader, data_type, result_filename, evaluator, writer, n_iter,
                                   save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
         n_frame += nf
         timer_avgs.append(ta)
@@ -226,6 +236,29 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             cmd_str = 'ffmpeg -y -f image2 -i {}/%05d.jpg -c:v copy {}'.format(debug_dir, debug_video_path)
             os.system(cmd_str)
             os.system("rm -R {}".format(debug_dir))
+
+        if opt.vis_FN:
+
+            FN_dir = os.path.join(opt.FN_images, opt.dataset)
+            if not osp.exists(FN_dir):
+                os.makedirs(FN_dir)
+
+            for img0, online_tlwhs, online_ids, frame_id, fps, FN_tlbrs_selected in plot_arguments:
+                FN_im = vis.plot_FN(img0, online_tlwhs, online_ids, acc.mot_events.loc[frame_id], seq,
+                                         evaluator,
+                                         frame_id=frame_id, fps=fps, FN_tlbrs_selected=FN_tlbrs_selected)
+
+                cv2.imwrite(os.path.join(FN_dir, '{:05d}.jpg'.format(frame_id)), FN_im)
+
+            FN_video_folder = osp.join(opt.FN_videos, opt.dataset)
+            if not osp.exists(FN_video_folder):
+                os.makedirs(FN_video_folder)
+            FN_video_path = osp.join(FN_video_folder, '{}_FN.mp4'.format(seq))
+
+            cmd_str = 'ffmpeg -y -f image2 -i {}/%05d.jpg -c:v copy {}'.format(FN_dir, FN_video_path)
+            os.system(cmd_str)
+            os.system("rm -R {}".format(FN_dir))
+
 
         if opt.count_fn:
             for img0, online_tlwhs, online_ids, frame_id, fps in plot_arguments:
@@ -347,8 +380,10 @@ if __name__ == '__main__':
     parser.add_argument('--result-dir', type=str, default='results', help='path to result files')
     parser.add_argument('--output-images', type=str, default='output_images', help='path to output path')
     parser.add_argument('--output-videos', type=str, default='output_videos', help='path to output path')
-    parser.add_argument('--debug-images', type=str, default='debug_images', help='path to debug vis result path')
-    parser.add_argument('--debug-videos', type=str, default='debug_videos', help='path to debug vis result path')
+    parser.add_argument('--debug-images', type=str, default='../exp/debug_images', help='path to debug vis result path')
+    parser.add_argument('--debug-videos', type=str, default='../exp/debug_videos', help='path to debug vis result path')
+    parser.add_argument('--FN-images', type=str, default='../exp/FN_images', help='path to FN vis result path')
+    parser.add_argument('--FN-videos', type=str, default='../exp/FN_videos', help='path to FN vis result path')
     parser.add_argument('--dataset', type=str, default='mot17_train', help='dataset to test on')
     parser.add_argument('--iou-thres', type=float, default=0.5, help='iou threshold required to qualify as detected')
     parser.add_argument('--ghost-feature-thres', type=float, default=0.6, help='feature threshold for ghost matching')
@@ -390,13 +425,23 @@ if __name__ == '__main__':
     parser.add_argument('--ghost-track', action='store_true', help='use ghost track instead ghost detection')
     parser.add_argument('--thresholding-occ-reason', action='store_true', help='using threshold/min-distance for occlusion reasoning when generating GT ghost box')
     parser.add_argument('--use-featmap', action='store_true', help='use feature map for GRN, instead of feature vector')
+    parser.add_argument('--vis-FN', action='store_true', help='visualize matched FNs and all FNs')
 
     opt = parser.parse_args()
     print(opt, end='\n\n')
 
+    # if opt.dataset == 'mot17_train':
+    #     seqs_str = '''MOT17-02-SDP
+    #                   MOT17-04-SDP
+    #                   MOT17-05-SDP
+    #                   MOT17-09-SDP
+    #                   MOT17-10-SDP
+    #                   MOT17-11-SDP
+    #                   MOT17-13-SDP
+    #                 '''
+    #     data_root = '/hdd/yongxinw/MOT17/MOT17/train'
     if opt.dataset == 'mot17_train':
-        seqs_str = '''MOT17-02-SDP
-                      MOT17-04-SDP
+        seqs_str = '''MOT17-04-SDP
                       MOT17-05-SDP
                       MOT17-09-SDP
                       MOT17-10-SDP
@@ -404,15 +449,25 @@ if __name__ == '__main__':
                       MOT17-13-SDP
                     '''
         data_root = '/hdd/yongxinw/MOT17/MOT17/train'
-
+    # elif opt.dataset == 'mot15_train':
+    #     seqs_str = '''ADL-Rundle-6
+    #                   ADL-Rundle-8
+    #                   ETH-Bahnhof
+    #                   ETH-Pedcross2
+    #                   ETH-Sunnyday
+    #                   KITTI-13
+    #                   KITTI-17
+    #                   PETS09-S2L1
+    #                   TUD-Campus
+    #                   TUD-Stadtmitte
+    #                   Venice-2
+    #                 '''
+    #     data_root = '/hdd/yongxinw/2DMOT2015/train/'
     elif opt.dataset == 'mot15_train':
-        seqs_str = '''ADL-Rundle-6
-                      ADL-Rundle-8
+        seqs_str = '''ADL-Rundle-8
                       ETH-Bahnhof
                       ETH-Pedcross2
                       ETH-Sunnyday
-                      KITTI-13
-                      KITTI-17
                       PETS09-S2L1
                       TUD-Campus
                       TUD-Stadtmitte
