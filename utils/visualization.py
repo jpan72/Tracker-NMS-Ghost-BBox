@@ -224,18 +224,25 @@ def plot_FN(image, tlwhs, obj_ids, acc_frame, seq, evaluator, scores=None, frame
     miss_rows = acc_frame[acc_frame.Type.eq('MISS')]
     miss_OIds = miss_rows.OId.values
     for miss_OId in miss_OIds:
+        try:
+            x1, y1, w, h = gt_tlwhs[gt_ids==miss_OId][0] # 2d array -> 1d array
+            intbox = tuple(map(int, (x1, y1, x1 + w, y1 + h)))
+            color = debug_color('MISS')
 
-        x1, y1, w, h = gt_tlwhs[gt_ids==miss_OId][0] # 2d array -> 1d array
-        intbox = tuple(map(int, (x1, y1, x1 + w, y1 + h)))
-        color = debug_color('MISS')
+            cv2.rectangle(im, intbox[0:2], intbox[2:4], color=color, thickness=line_thickness)
+            cv2.putText(im, '{}'.format(miss_OId), (intbox[0], intbox[1] + 30), cv2.FONT_HERSHEY_PLAIN, text_scale, (0, 0, 255),
+                        thickness=text_thickness)
 
-        cv2.rectangle(im, intbox[0:2], intbox[2:4], color=color, thickness=line_thickness)
-        cv2.putText(im, '{}'.format(miss_OId), (intbox[0], intbox[1] + 30), cv2.FONT_HERSHEY_PLAIN, text_scale, (0, 0, 255),
-                    thickness=text_thickness)
+            print()
+            print('yellow:')
+            print(intbox)
+        except:
+            pass
 
     for i, tlbr in enumerate(FN_tlbrs_selected):
         x1, y1, x2, y2 = tlbr
         intbox = tuple(map(int, (x1, y1, x2, y2)))
+        print('orange:')
         print(intbox)
         cv2.rectangle(im, intbox[0:2], intbox[2:4], color=(0, 140, 255), thickness=int(line_thickness)) # orange
 

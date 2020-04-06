@@ -4,7 +4,11 @@
     <list default="true" id="e1771156-923e-40ef-8431-6f3d133ceaed" name="Default Changelist" comment="">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/GPN_preprocess.py" beforeDir="false" afterPath="$PROJECT_DIR$/GPN_preprocess.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/GPN_train.py" beforeDir="false" afterPath="$PROJECT_DIR$/GPN_train.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/models.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/tracker/preprocess_multitracker.py" beforeDir="false" afterPath="$PROJECT_DIR$/tracker/preprocess_multitracker.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/alexnet.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/alexnet.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/datasets.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/datasets.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/utils/visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/visualization.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
@@ -121,7 +125,14 @@
       <option name="project" value="LOCAL" />
       <updated>1585876562787</updated>
     </task>
-    <option name="localTasksCounter" value="9" />
+    <task id="LOCAL-00009" summary="visualize FNs and matched FNs">
+      <created>1586040098042</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1586040098042</updated>
+    </task>
+    <option name="localTasksCounter" value="10" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -135,7 +146,8 @@
     <MESSAGE value="add test GRN code and occlusion reasoning options" />
     <MESSAGE value="add option to use feature map for GRN" />
     <MESSAGE value="add alexnet for feature map" />
-    <option name="LAST_COMMIT_MESSAGE" value="add alexnet for feature map" />
+    <MESSAGE value="visualize FNs and matched FNs" />
+    <option name="LAST_COMMIT_MESSAGE" value="visualize FNs and matched FNs" />
   </component>
   <component name="WindowStateProjectService">
     <state x="487" y="-891" key="#Deployment" timestamp="1583297330880">
@@ -150,9 +162,10 @@
       <screen x="-285" y="-1057" width="1920" height="1057" />
     </state>
     <state x="509" y="-875" width="777" height="636" key="#com.intellij.openapi.keymap.impl.ui.EditKeymapsDialog/0.23.1280.720/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583710700598" />
-    <state x="-949" y="-1057" width="1920" height="1057" key="CommitChangelistDialog2" timestamp="1585876562613">
-      <screen x="-949" y="-1057" width="1920" height="1057" />
+    <state x="0" y="0" width="1920" height="1057" key="CommitChangelistDialog2" timestamp="1586040097568">
+      <screen x="0" y="0" width="1280" height="800" />
     </state>
+    <state x="0" y="0" key="CommitChangelistDialog2/0.0.1280.800/-342.-1080.1920.1080@0.0.1280.800" timestamp="1586040097568" />
     <state x="-949" y="-1057" width="1920" height="1057" key="CommitChangelistDialog2/0.23.1245.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1585876562613" />
     <state x="123" y="23" key="CommitChangelistDialog2/0.23.1245.777@0.23.1245.777" timestamp="1585358959737" />
     <state x="-152" y="-1057" key="CommitChangelistDialog2/0.23.1249.777/-342.-1057.1920.1057@-342.-1057.1920.1057" timestamp="1584321757796" />
@@ -180,9 +193,10 @@
     <state x="396" y="-890" key="SettingsEditor/0.23.1280.721/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583297283473" />
     <state x="395" y="-890" key="SettingsEditor/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583288958933" />
     <state x="395" y="-899" key="SettingsEditor/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583290816251" />
-    <state x="-263" y="-816" key="Vcs.Push.Dialog.v2" timestamp="1585876564212">
-      <screen x="-949" y="-1057" width="1920" height="1057" />
+    <state x="457" y="182" key="Vcs.Push.Dialog.v2" timestamp="1586040100793">
+      <screen x="0" y="0" width="1280" height="800" />
     </state>
+    <state x="457" y="182" key="Vcs.Push.Dialog.v2/0.0.1280.800/-342.-1080.1920.1080@0.0.1280.800" timestamp="1586040100793" />
     <state x="-263" y="-816" key="Vcs.Push.Dialog.v2/0.23.1245.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1585876564212" />
     <state x="445" y="200" key="Vcs.Push.Dialog.v2/0.23.1245.777@0.23.1245.777" timestamp="1585358962817" />
     <state x="430" y="-816" key="Vcs.Push.Dialog.v2/0.23.1249.777/-342.-1057.1920.1057@-342.-1057.1920.1057" timestamp="1584321763619" />
@@ -209,9 +223,10 @@
     </state>
     <state x="646" y="-809" key="git4idea.branch.GitSmartOperationDialog/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583289507837" />
     <state x="646" y="-822" key="git4idea.branch.GitSmartOperationDialog/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583289568082" />
-    <state x="581" y="196" width="670" height="497" key="search.everywhere.popup" timestamp="1585784092269">
-      <screen x="0" y="23" width="1245" height="777" />
+    <state x="672" y="200" width="775" height="576" key="search.everywhere.popup" timestamp="1586042902296">
+      <screen x="0" y="0" width="1440" height="900" />
     </state>
+    <state x="672" y="200" width="775" height="576" key="search.everywhere.popup/0.0.1440.900/-342.-1080.1920.1080@0.0.1440.900" timestamp="1586042902296" />
     <state x="-53" y="-822" width="670" height="676" key="search.everywhere.popup/0.23.1245.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1585450095516" />
     <state x="581" y="196" width="670" height="497" key="search.everywhere.popup/0.23.1245.777/-949.-1057.1920.1057@0.23.1245.777" timestamp="1585784092269" />
     <state x="-53" y="-822" width="670" height="676" key="search.everywhere.popup/0.23.1249.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1584584673417" />

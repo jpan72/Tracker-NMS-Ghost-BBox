@@ -13,6 +13,8 @@ import torch
 from torch.utils.data import Dataset
 from utils.utils import xyxy2xywh
 
+from PIL import Image
+
 class LoadImages:  # for inference
     def __init__(self, path, img_size=(1088, 608)):
         if os.path.isdir(path):
@@ -430,4 +432,4 @@ class GhostDataset(Dataset):
     def __getitem__(self, idx):
         path = self.npz_paths[idx]
         data = np.load(path)
-        return self.transforms(data['track_feat']), self.transforms(data['det_feat']), data['target_delta_bbox']
+        return self.transforms(Image.fromarray(data['track_feat'])), self.transforms(Image.fromarray(data['det_feat'])), data['target_delta_bbox']

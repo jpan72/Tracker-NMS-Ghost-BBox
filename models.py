@@ -410,7 +410,7 @@ def save_weights(self, path, cutoff=-1):
     fp.close()
 
 
-
+#
 # use feature map, alexnet
 
 class GPN(nn.Module):
@@ -418,7 +418,7 @@ class GPN(nn.Module):
         super(GPN, self).__init__()
         self.classifier = nn.Sequential(
             nn.Dropout(),
-            nn.Linear(2 * 256 * 6 * 6, 4096),
+            nn.Linear(2 * 256 * 7 * 7, 4096),
             nn.ReLU(inplace=True),
             nn.Dropout(),
             nn.Linear(4096, 4096),
@@ -442,8 +442,11 @@ class GPN(nn.Module):
         # track_feat, track_featmap = self.extractor(track_img.permute(0,3,1,2)) # track_featmap: 1, 256, 6, 6
         # det_feat, det_featmap = self.extractor(det_img.permute(0,3,1,2))
 
+        # import pdb; pdb.set_trace()
         track_feat, track_featmap = self.extractor(track_img) # track_featmap: 1, 256, 6, 6
         det_feat, det_featmap = self.extractor(det_img)
+
+        # import pdb; pdb.set_trace()
 
         concatenated_feat = torch.cat((track_featmap, det_featmap), dim=1) # 1, 512, 6, 6
 
@@ -451,11 +454,11 @@ class GPN(nn.Module):
         delta_bbox = self.classifier(x)
 
         # import pdb; pdb.set_trace()
-        print(np.isnan(track_img.cpu().detach().numpy()).any())
+        # print(np.isnan(track_img.cpu().detach().numpy()).any())
 
         return delta_bbox
 
-
+#
 # # use feature map, resnet
 #
 # class GPN(nn.Module):
@@ -463,7 +466,7 @@ class GPN(nn.Module):
 #         super(GPN, self).__init__()
 #         self.conv1 = nn.Conv2d(1024, 512, 3, 2, padding=1)
 #         self.conv2 = nn.Conv2d(512, 256, 3, 2, padding=1)
-#         self.dropout = nn.Dropout2d(0.25)
+#         self.dropout = nn.Dropout2d(0.5)
 #         self.fc1 = nn.Linear(256*49, 4096)
 #         self.fc2 = nn.Linear(4096, 4096)
 #         self.reg = nn.Linear(4096, 4)
@@ -481,7 +484,6 @@ class GPN(nn.Module):
 #         track_feat: bs, 512
 #         det_feat:   bs, 512
 #         """
-#
 #
 #         track_feat, track_featmap = self.extractor(track_img)
 #         det_feat, det_featmap = self.extractor(det_img)

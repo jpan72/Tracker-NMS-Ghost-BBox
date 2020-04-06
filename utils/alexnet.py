@@ -42,6 +42,7 @@ class AlexNet(nn.Module):
         )
 
     def forward(self, x):
+
         x = self.features(x)
         feat = x
         x = self.avgpool(x)

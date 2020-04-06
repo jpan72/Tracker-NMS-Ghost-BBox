@@ -40,10 +40,14 @@ def train(
 
     # Get dataloader
     if opt.load_image:
-        transforms = transforms.Compose([
-            transforms.Resize(256),
-            transforms.ToTensor(),
-            transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        if opt.network == 'alexnet':
+            input_size = 256
+        else:
+            input_size = 224
+        transforms = T.Compose([
+            T.Resize((input_size, input_size)),
+            T.ToTensor(),
+            T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
     else:
         transforms = T.Compose([T.ToTensor()])
@@ -51,7 +55,7 @@ def train(
 
     # dataset_root = '../preprocess-ghost-bbox-HA0.3/MOT17/MOT17/train'
     # dataset_root = '../preprocess-ghost-bbox-th0.6/MOT17/MOT17/train'
-    dataset_root = '../preprocess-ghost-bbox-th0.6-map/MOT17/MOT17/train'
+    dataset_root = '../preprocess-ghost-bbox-th0.6-map-more/MOT17/MOT17/train'
     dataset = GhostDataset(dataset_root, transforms)
     # dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True,
     #                                          num_workers=8, pin_memory=True, drop_last=True, collate_fn=collate_fn)
@@ -59,7 +63,7 @@ def train(
 
 
     # dataset_root_test = '../preprocess-ghost-bbox-th0.6/2DMOT2015/train'
-    dataset_root_test = '../preprocess-ghost-bbox-th0.6-map/2DMOT2015/train'
+    dataset_root_test = '../preprocess-ghost-bbox-th0.6-map-more/2DMOT2015/train'
     dataset_test = GhostDataset(dataset_root_test, transforms)
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=batch_size, shuffle=True, num_workers=8)
 
@@ -99,8 +103,8 @@ def train(
     #     # Set optimizer
     #     optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, model.parameters()), lr=opt.lr, momentum=.9, weight_decay=1e-4)
 
-    # optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, gpn.parameters()), lr=opt.lr, momentum=.9, weight_decay=1e-4)
-    optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, gpn.parameters()), lr=0.0001)
+    optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, gpn.parameters()), lr=opt.lr, momentum=.9, weight_decay=1e-4)
+    # optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, gpn.parameters()), lr=0.0001)
     smooth_l1_loss = nn.SmoothL1Loss().cuda()
     smooth_l1_loss_test = nn.SmoothL1Loss(reduction='sum').cuda()
     # model = torch.nn.DataParallel(model)
@@ -265,6 +269,7 @@ if __name__ == '__main__':
     parser.add_argument('--lr', type=float, default=1e-2, help='init lr')
     parser.add_argument('--unfreeze-bn', action='store_true', help='unfreeze bn')
     parser.add_argument('--load-image', action='store_true', help='load image instead of features')
+    parser.add_argument('--network', type=str, default='alexnet', help='alexnet or resnet')
     opt = parser.parse_args()
 
     init_seeds()

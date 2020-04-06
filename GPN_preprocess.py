@@ -22,7 +22,7 @@ from utils.datasets import JointDataset, collate_fn
 from utils.utils import *
 from models import *
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 def write_results(filename, results, data_type, dataset):
@@ -244,11 +244,15 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
                 os.makedirs(FN_dir)
 
             for img0, online_tlwhs, online_ids, frame_id, fps, FN_tlbrs_selected in plot_arguments:
-                FN_im = vis.plot_FN(img0, online_tlwhs, online_ids, acc.mot_events.loc[frame_id], seq,
-                                         evaluator,
-                                         frame_id=frame_id, fps=fps, FN_tlbrs_selected=FN_tlbrs_selected)
+                try:
+                    FN_im = vis.plot_FN(img0, online_tlwhs, online_ids, acc.mot_events.loc[frame_id], seq,
+                                             evaluator,
+                                             frame_id=frame_id, fps=fps, FN_tlbrs_selected=FN_tlbrs_selected)
 
-                cv2.imwrite(os.path.join(FN_dir, '{:05d}.jpg'.format(frame_id)), FN_im)
+                    cv2.imwrite(os.path.join(FN_dir, '{:05d}.jpg'.format(frame_id)), FN_im)
+
+                except:
+                    cv2.imwrite(os.path.join(FN_dir, '{:05d}.jpg'.format(frame_id)), img0)
 
             FN_video_folder = osp.join(opt.FN_videos, opt.dataset)
             if not osp.exists(FN_video_folder):
@@ -430,18 +434,9 @@ if __name__ == '__main__':
     opt = parser.parse_args()
     print(opt, end='\n\n')
 
-    # if opt.dataset == 'mot17_train':
-    #     seqs_str = '''MOT17-02-SDP
-    #                   MOT17-04-SDP
-    #                   MOT17-05-SDP
-    #                   MOT17-09-SDP
-    #                   MOT17-10-SDP
-    #                   MOT17-11-SDP
-    #                   MOT17-13-SDP
-    #                 '''
-    #     data_root = '/hdd/yongxinw/MOT17/MOT17/train'
     if opt.dataset == 'mot17_train':
-        seqs_str = '''MOT17-04-SDP
+        seqs_str = '''MOT17-02-SDP
+                      MOT17-04-SDP
                       MOT17-05-SDP
                       MOT17-09-SDP
                       MOT17-10-SDP
@@ -449,25 +444,15 @@ if __name__ == '__main__':
                       MOT17-13-SDP
                     '''
         data_root = '/hdd/yongxinw/MOT17/MOT17/train'
-    # elif opt.dataset == 'mot15_train':
-    #     seqs_str = '''ADL-Rundle-6
-    #                   ADL-Rundle-8
-    #                   ETH-Bahnhof
-    #                   ETH-Pedcross2
-    #                   ETH-Sunnyday
-    #                   KITTI-13
-    #                   KITTI-17
-    #                   PETS09-S2L1
-    #                   TUD-Campus
-    #                   TUD-Stadtmitte
-    #                   Venice-2
-    #                 '''
-    #     data_root = '/hdd/yongxinw/2DMOT2015/train/'
+
     elif opt.dataset == 'mot15_train':
-        seqs_str = '''ADL-Rundle-8
+        seqs_str = '''ADL-Rundle-6
+                      ADL-Rundle-8
                       ETH-Bahnhof
                       ETH-Pedcross2
                       ETH-Sunnyday
+                      KITTI-13
+                      KITTI-17
                       PETS09-S2L1
                       TUD-Campus
                       TUD-Stadtmitte
@@ -475,17 +460,10 @@ if __name__ == '__main__':
                     '''
         data_root = '/hdd/yongxinw/2DMOT2015/train/'
 
+
     elif opt.dataset == 'mot15_train_unique':
-        # seqs_str = '''ADL-Rundle-6
-        #               ADL-Rundle-8
-        #               KITTI-13
-        #               KITTI-17
-        #               PETS09-S2L1
-        #               TUD-Campus
-        #               TUD-Stadtmitte
-        #               Venice-2
-        #             '''
-        seqs_str = '''ADL-Rundle-8
+        seqs_str = '''ADL-Rundle-6
+                      ADL-Rundle-8
                       KITTI-13
                       KITTI-17
                       PETS09-S2L1
