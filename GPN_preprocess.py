@@ -74,7 +74,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, evaluator, writer, n_i
             ghost_sequence.append((ghost_tlwhs, frame_id))
             ghost_match_ious.extend(ghost_match_iou)
         elif opt.vis_FN:
-            online_targets, n_iter, FN_tlbrs_selected = tracker.update(blob, img0, opt, evaluator, writer, n_iter, path)
+            online_targets, n_iter, FN_tlbrs_selected, track_tlbrs_selected = tracker.update(blob, img0, opt, evaluator, writer, n_iter, path)
         else:
             online_targets, n_iter = tracker.update(blob, img0, opt, evaluator, writer, n_iter, path)
 
@@ -105,7 +105,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, evaluator, writer, n_i
             plot_arguments.append((img0, online_tlwhs, online_ids, frame_id, 1. / timer.average_time))
 
         if opt.vis_FN:
-            plot_arguments.append((img0, online_tlwhs, online_ids, frame_id, 1. / timer.average_time, FN_tlbrs_selected))
+            plot_arguments.append((img0, online_tlwhs, online_ids, frame_id, 1. / timer.average_time, FN_tlbrs_selected, track_tlbrs_selected))
 
         frame_id += 1
 
@@ -243,11 +243,11 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             if not osp.exists(FN_dir):
                 os.makedirs(FN_dir)
 
-            for img0, online_tlwhs, online_ids, frame_id, fps, FN_tlbrs_selected in plot_arguments:
+            for img0, online_tlwhs, online_ids, frame_id, fps, FN_tlbrs_selected, track_tlbr_selected in plot_arguments:
                 try:
                     FN_im = vis.plot_FN(img0, online_tlwhs, online_ids, acc.mot_events.loc[frame_id], seq,
                                              evaluator,
-                                             frame_id=frame_id, fps=fps, FN_tlbrs_selected=FN_tlbrs_selected)
+                                             frame_id=frame_id, fps=fps, FN_tlbrs_selected=FN_tlbrs_selected, track_tlbrs_selected=track_tlbrs_selected)
 
                     cv2.imwrite(os.path.join(FN_dir, '{:05d}.jpg'.format(frame_id)), FN_im)
 

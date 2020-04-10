@@ -501,6 +501,7 @@ class JDETracker(object):
         # print(evaluator.acc.mot_events)
 
         FN_tlbrs_selected = []
+        tracks_selected = []
         if self.frame_id > 1:
 
             acc_frame = evaluator.acc.mot_events.loc[self.frame_id-1]
@@ -552,20 +553,11 @@ class JDETracker(object):
                 um_FN_matches, u_track, u_detection = matching.linear_assignment(dists, thresh=occ_reason_thres)
 
 
-            # print(um_FN_matches)
             map2 = {}
             for um, FN in um_FN_matches:
                 map2[um] = FN
             FN_tlbrs_selected = [FN_tlbrs[j] for (_, j) in um_FN_matches]
-
-
-
-            # if len(um_FN_matches) > 0:
-            #
-            #     print()
-            #     print('! inside tracker:')
-            #     print(self.frame_id)
-            #     print(FN_tlbrs_selected)
+            tracks_selected = [um_tlbrs[x] for (x, _) in um_FN_matches]
 
             um1 = [x[0] for x in um_det_matches]
             um2 = [x[0] for x in um_FN_matches]
@@ -579,7 +571,7 @@ class JDETracker(object):
 
             prefix = path.split('img1')[0]
             if opt.use_featmap:
-                dataset_root = '../preprocess-ghost-bbox-th{}-map-more/'.format(opt.occ_reason_thres)
+                dataset_root = '../preprocess-ghost-bbox-th{}-map-more-filter/'.format(opt.occ_reason_thres)
             else:
                 dataset_root = '../preprocess-ghost-bbox-th0.6/'
             save_dir = osp.join(prefix, 'preprocess').replace('/hdd/yongxinw/', dataset_root)
@@ -613,8 +605,8 @@ class JDETracker(object):
                 target_delta_bbox = FN_tlwhs[ind_FN] - track.mean[:4]
                 # print(target_delta_bbox)
 
-                # if abs(target_delta_bbox[0])  100 or abs(target_delta_bbox[1]) > 100/1088*608:
-                #     continue
+                if abs(target_delta_bbox[0]) > 100 or abs(target_delta_bbox[1]) > 100/1088*608:
+                    continue
 
                 if use_featmap:
                     if track.img_patch.shape[0] < 5 or track.img_patch.shape[1] < 5 or \
@@ -675,7 +667,7 @@ class JDETracker(object):
         if opt.ghost_stats:
             return output_stracks, n_iter, last_ghosts, ghost_match_iou
         if opt.vis_FN:
-            return output_stracks, n_iter, FN_tlbrs_selected
+            return output_stracks, n_iter, FN_tlbrs_selected, tracks_selected
         return output_stracks, n_iter
 
     def update(self, im_blob, img0, opt, evaluator, writer, n_iter, path):

@@ -56,7 +56,7 @@ def train(
 
     # dataset_root = '../preprocess-ghost-bbox-HA0.3/MOT17/MOT17/train'
     # dataset_root = '../preprocess-ghost-bbox-th0.6/MOT17/MOT17/train'
-    dataset_root = '../preprocess-ghost-bbox-th0.6-map-more/MOT17/MOT17/train'
+    dataset_root = '../preprocess-ghost-bbox-th0.6-map-more-filter/MOT17/MOT17/train'
     dataset = GhostDataset(dataset_root, transforms)
     # dataloader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, shuffle=True,
     #                                          num_workers=8, pin_memory=True, drop_last=True, collate_fn=collate_fn)
@@ -64,7 +64,7 @@ def train(
 
 
     # dataset_root_test = '../preprocess-ghost-bbox-th0.6/2DMOT2015/train'
-    dataset_root_test = '../preprocess-ghost-bbox-th0.6-map-more/2DMOT2015/train'
+    dataset_root_test = '../preprocess-ghost-bbox-th0.6-map-more-filter/2DMOT2015/train'
     dataset_test = GhostDataset(dataset_root_test, transforms)
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=batch_size, shuffle=True, num_workers=8)
 
@@ -338,7 +338,7 @@ def train(
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--epochs', type=int, default=30, help='number of epochs')
+    parser.add_argument('--epochs', type=int, default=50, help='number of epochs')
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
     parser.add_argument('--accumulated-batches', type=int, default=2, help='number of batches before optimizer step')
     parser.add_argument('--cfg', type=str, default='cfg/yolov3_1088x608.cfg', help='cfg file path')

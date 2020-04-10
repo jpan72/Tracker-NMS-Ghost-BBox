@@ -179,7 +179,7 @@ def count_fn_debug(image, tlwhs, obj_ids, acc_frame, seq, evaluator, u8scores=No
     return det_area_sum_frame, det_count_frame, fn_areas_frame
 
 
-def plot_FN(image, tlwhs, obj_ids, acc_frame, seq, evaluator, scores=None, frame_id=0, fps=0., ids2=None, FN_tlbrs_selected=None):
+def plot_FN(image, tlwhs, obj_ids, acc_frame, seq, evaluator, scores=None, frame_id=0, fps=0., ids2=None, FN_tlbrs_selected=None, track_tlbrs_selected=None):
 
     im = np.ascontiguousarray(np.copy(image))
     im_h, im_w = im.shape[:2]
@@ -233,19 +233,25 @@ def plot_FN(image, tlwhs, obj_ids, acc_frame, seq, evaluator, scores=None, frame
             cv2.putText(im, '{}'.format(miss_OId), (intbox[0], intbox[1] + 30), cv2.FONT_HERSHEY_PLAIN, text_scale, (0, 0, 255),
                         thickness=text_thickness)
 
-            print()
-            print('yellow:')
-            print(intbox)
+            # print()
+            # print('yellow:')
+            # print(intbox)
         except:
             pass
 
     for i, tlbr in enumerate(FN_tlbrs_selected):
         x1, y1, x2, y2 = tlbr
         intbox = tuple(map(int, (x1, y1, x2, y2)))
-        print('orange:')
-        print(intbox)
+        # print('orange:')
+        # print(intbox)
         cv2.rectangle(im, intbox[0:2], intbox[2:4], color=(0, 140, 255), thickness=int(line_thickness)) # orange
 
+    for i, tlbr in enumerate(track_tlbrs_selected):
+        x1, y1, x2, y2 = tlbr
+        intbox = tuple(map(int, (x1, y1, x2, y2)))
+        # print('pink:')
+        # print(intbox)
+        cv2.rectangle(im, intbox[0:2], intbox[2:4], color=(180, 205, 255), thickness=int(line_thickness)) # orange
 
     return im
 
