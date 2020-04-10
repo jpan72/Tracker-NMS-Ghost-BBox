@@ -37,8 +37,10 @@ class STrack(BaseTrack):
         self.features = deque([], maxlen=buffer_size)
         self.alpha = 0.9
         self.ghost = False
+        self.tlwh_buffer = deque([], maxlen=buffer_size)
         
         self.img_patch = img_patch
+        self.buffer_size = buffer_size
     
     def update_features(self, feat):
         feat /= np.linalg.norm(feat)
@@ -101,6 +103,8 @@ class STrack(BaseTrack):
         )
 
         self.update_features(new_track.curr_feat)
+        self.tlwh_buffer = deque([], maxlen=self.buffer_size)
+        self.tlwh_buffer.append(new_track.tlwh)
         self.tracklet_len = 0
         self.state = TrackState.Tracked
         self.is_activated = True
@@ -129,6 +133,7 @@ class STrack(BaseTrack):
         self.score = new_track.score
         if update_feature:
             self.update_features(new_track.curr_feat)
+        self.tlwh_buffer.append(new_track.tlwh)
         self.img_patch = new_track.img_patch
 
 
@@ -149,6 +154,7 @@ class STrack(BaseTrack):
                 self.mean, self.covariance, self.tlwh_to_xyah(new_tlwh), var_multiplier)
         self.state = TrackState.Tracked
         self.is_activated = True
+        self.tlwh_buffer.append(FN_tlwh)
 
         self.score = 1
         self.img_patch = FN_img_patch #?
@@ -174,6 +180,7 @@ class STrack(BaseTrack):
         # self.score = new_track.score
         if update_feature:
             self.update_features(new_track.curr_feat)
+        self.tlwh_buffer.append(ghost_tlwh)
 
 
     def extend(self, frame_id):
@@ -500,7 +507,8 @@ class JDETracker(object):
             miss_rows = acc_frame[acc_frame.Type.eq('MISS')]
             miss_OIds = miss_rows.OId.values
 
-            gt_objs = evaluator.gt_frame_dict.get(self.frame_id-1, [])
+            # gt_objs = evaluator.gt_frame_dict.get(self.frame_id-1, [])
+            gt_objs = evaluator.gt_frame_dict.get(self.frame_id, [])
             gt_tlwhs, gt_ids = unzip_objs(gt_objs)[:2]
 
             FN_tlwhs = []
@@ -552,12 +560,12 @@ class JDETracker(object):
 
 
 
-            if len(um_FN_matches) > 0:
-
-                print()
-                print('! inside tracker:')
-                print(self.frame_id)
-                print(FN_tlbrs_selected)
+            # if len(um_FN_matches) > 0:
+            #
+            #     print()
+            #     print('! inside tracker:')
+            #     print(self.frame_id)
+            #     print(FN_tlbrs_selected)
 
             um1 = [x[0] for x in um_det_matches]
             um2 = [x[0] for x in um_FN_matches]
@@ -612,7 +620,10 @@ class JDETracker(object):
                     if track.img_patch.shape[0] < 5 or track.img_patch.shape[1] < 5 or \
                         det.img_patch.shape[0] < 5 or det.img_patch.shape[1] < 5:
                         continue
-                    np.savez(save_path, track_feat=track.img_patch, det_feat=det.img_patch, target_delta_bbox=target_delta_bbox)
+                    # np.savez(save_path, track_feat=track.img_patch, det_feat=det.img_patch, target_delta_bbox=target_delta_bbox)
+                    np.savez(save_path, track_feat=track.img_patch, det_feat=det.img_patch,
+                             track_tlbr=track.tlbr, det_tlbr=det.tlbr, tlwh_history=track.tlwh_buffer,
+                             target_delta_bbox=target_delta_bbox)
                 else:
                     np.savez(save_path, track_feat=track.smooth_feat, det_feat=det.smooth_feat, target_delta_bbox=target_delta_bbox)
 

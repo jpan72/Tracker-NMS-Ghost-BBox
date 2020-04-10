@@ -10,6 +10,7 @@ import math
 from utils.resnet import resnet50, resnet101, resnet152
 import torch.nn.functional as F
 from utils.alexnet import alexnet
+from cython_bbox import bbox_overlaps
 
 try:
     from utils.syncbn import SyncBN
@@ -409,9 +410,7 @@ def save_weights(self, path, cutoff=-1):
 
     fp.close()
 
-
-#
-# use feature map, alexnet
+# use feature map, alexnet, LSTM
 
 class GPN(nn.Module):
     def __init__(self):
@@ -432,31 +431,101 @@ class GPN(nn.Module):
         for param in self.extractor.parameters():
             param.requires_grad = False
 
+        self.vis_thres = 0.1
+        self.lstm = nn.LSTM(input_size=4, hidden_size=32, num_layers=1, batch_first=True)
+        self.lstm_reg = nn.Linear(32, 4)
 
-    def forward(self, track_img, det_img):
+        self.dropout = nn.Dropout()
+
+
+    def forward(self, track_imgs, det_imgs, track_tlbrs, det_tlbrs, tlwh_histories):
         """
-        track_feat: bs, 512
-        det_feat:   bs, 512
+        track_imgs: bs, 3, h, w
+        det_imgs: bs, 3, h, w
+        track_tlbrs: bs, 4
+        det_tlbrs: bs, 4
+        bbox_histories: bs, history_size, 4
         """
-        #
-        # track_feat, track_featmap = self.extractor(track_img.permute(0,3,1,2)) # track_featmap: 1, 256, 6, 6
-        # det_feat, det_featmap = self.extractor(det_img.permute(0,3,1,2))
 
-        # import pdb; pdb.set_trace()
-        track_feat, track_featmap = self.extractor(track_img) # track_featmap: 1, 256, 6, 6
-        det_feat, det_featmap = self.extractor(det_img)
-
-        # import pdb; pdb.set_trace()
-
+        track_feat, track_featmap = self.extractor(track_imgs) # track_featmap: 1, 256, 6, 6
+        det_feat, det_featmap = self.extractor(det_imgs)
         concatenated_feat = torch.cat((track_featmap, det_featmap), dim=1) # 1, 512, 6, 6
-
         x = torch.flatten(concatenated_feat, 1)
         delta_bbox = self.classifier(x)
 
-        # import pdb; pdb.set_trace()
-        # print(np.isnan(track_img.cpu().detach().numpy()).any())
+        track_tlwhs = track_tlbrs
+        det_tlwhs = det_tlbrs
+        track_tlwhs[:,2:4] -= track_tlwhs[:,0:2]
+        det_tlwhs[:,2:4] -= det_tlwhs[:,0:2]
+        visibility = 1 - bbox_overlaps(
+            np.ascontiguousarray(track_tlwhs.cpu().detach().numpy(), dtype=np.float),
+            np.ascontiguousarray(det_tlwhs.cpu().detach().numpy(), dtype=np.float)
+        )
+
+        _, (ht, _) = self.lstm(tlwh_histories)
+        ht = self.dropout(ht)
+        lstm_bboxes = self.lstm_reg(ht[-1])
+        cnn_bboxes = track_tlwhs + delta_bbox
+
+        delta_bbox = torch.zeros(track_tlbrs.size()).cuda()
+        bs = track_imgs.size(0)
+        for i in range(bs):
+            vis_i = visibility[i,i]
+            # if vis_i < self.vis_thres:
+            if True:
+                delta_bbox[i] = lstm_bboxes[i]
+            else:
+                delta_bbox[i] = lstm_bboxes[i] * vis_i + cnn_bboxes * (1 - vis_i)
 
         return delta_bbox
+
+
+# # use feature map, alexnet
+
+# class GPN(nn.Module):
+#     def __init__(self):
+#         super(GPN, self).__init__()
+#         self.classifier = nn.Sequential(
+#             nn.Dropout(),
+#             nn.Linear(2 * 256 * 7 * 7, 4096),
+#             nn.ReLU(inplace=True),
+#             nn.Dropout(),
+#             nn.Linear(4096, 4096),
+#             nn.ReLU(inplace=True),
+#             nn.Linear(4096, 4),
+#         )
+#
+#         # TODO: add classification layer and CE loss
+#
+#         self.extractor = alexnet(pretrained=True)
+#         for param in self.extractor.parameters():
+#             param.requires_grad = False
+#
+#
+#     def forward(self, track_img, det_img):
+#         """
+#         track_feat: bs, 512
+#         det_feat:   bs, 512
+#         """
+#         #
+#         # track_feat, track_featmap = self.extractor(track_img.permute(0,3,1,2)) # track_featmap: 1, 256, 6, 6
+#         # det_feat, det_featmap = self.extractor(det_img.permute(0,3,1,2))
+#
+#         # import pdb; pdb.set_trace()
+#         track_feat, track_featmap = self.extractor(track_img) # track_featmap: 1, 256, 6, 6
+#         det_feat, det_featmap = self.extractor(det_img)
+#
+#         # import pdb; pdb.set_trace()
+#
+#         concatenated_feat = torch.cat((track_featmap, det_featmap), dim=1) # 1, 512, 6, 6
+#
+#         x = torch.flatten(concatenated_feat, 1)
+#         delta_bbox = self.classifier(x)
+#
+#         # import pdb; pdb.set_trace()
+#         # print(np.isnan(track_img.cpu().detach().numpy()).any())
+#
+#         return delta_bbox
 
 #
 # # use feature map, resnet

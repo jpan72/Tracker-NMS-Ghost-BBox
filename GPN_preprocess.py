@@ -22,7 +22,7 @@ from utils.datasets import JointDataset, collate_fn
 from utils.utils import *
 from models import *
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+os.environ["CUDA_VISIBLE_DEVICES"] = "3"
 
 
 def write_results(filename, results, data_type, dataset):

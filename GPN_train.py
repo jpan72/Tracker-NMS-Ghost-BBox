@@ -45,6 +45,7 @@ def train(
         else:
             input_size = 224
         transforms = T.Compose([
+            T.ToPILImage(),
             T.Resize((input_size, input_size)),
             T.ToTensor(),
             T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -71,8 +72,24 @@ def train(
     # model = Darknet(cfg_dict, dataset.nID)
     gpn = GPN().cuda()
 
+    # from torch.nn import init
+    # for layer_p in gpn._all_weights:
+    #     for p in layer_p:
+    #         if 'weight' in p:
+    #             # print(p, a.__getattr__(p))
+    #             init.normal(gpn.__getattr__(p), 0.0, 0.02)
+    #             # print(p, a.__getattr__(p))
+
+
+    import torch.nn.init as weight_init
+    for name, param in gpn.named_parameters():
+        if 'weight' in name:
+            weight_init.normal(param);
+
+
     cutoff = -1  # backbone reaches to cutoff layer
     start_epoch = 0
+
     # if resume:
     #     checkpoint = torch.load(latest, map_location='cpu')
     #
@@ -103,8 +120,10 @@ def train(
     #     # Set optimizer
     #     optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, model.parameters()), lr=opt.lr, momentum=.9, weight_decay=1e-4)
 
-    optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, gpn.parameters()), lr=opt.lr, momentum=.9, weight_decay=1e-4)
-    # optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, gpn.parameters()), lr=0.0001)
+    if opt.optim == 'sgd':
+        optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, gpn.parameters()), lr=opt.lr, momentum=.9, weight_decay=1e-4)
+    else:
+        optimizer = torch.optim.Adam(filter(lambda x: x.requires_grad, gpn.parameters()), lr=opt.lr)
     smooth_l1_loss = nn.SmoothL1Loss().cuda()
     smooth_l1_loss_test = nn.SmoothL1Loss(reduction='sum').cuda()
     # model = torch.nn.DataParallel(model)
@@ -122,11 +141,14 @@ def train(
 
     model_info(gpn)
 
+    f = open("weights.txt", "w")
+    f.close()
+    f = open("weights.txt", "a")
     exp_name = f'{datetime.now():%Y-%m-%d-%H:%M%z}'
     writer = SummaryWriter(osp.join('../exp-ghost-bbox', exp_name))
     t0 = time.time()
     for epoch in range(epochs):
-
+        print('Epoch {}'.format(epoch))
 
         # training
         gpn.train()
@@ -146,25 +168,45 @@ def train(
         optimizer.zero_grad()
         # for i, (imgs, targets, _, _, targets_len) in enumerate(dataloader):
         print(len(dataloader))
-        for i, (track_feat, det_feat, target_delta_bbox) in enumerate(dataloader):
+        for i, (track_imgs, det_imgs, track_tlbrs, det_tlbrs, tlwh_histories, target_delta_bbox) in enumerate(dataloader):
             n_iter = epoch * len(dataloader) + i
 
-            track_feat = track_feat.cuda().float()
-            det_feat = det_feat.cuda().float()
+            if i % 100 == 0:
+                for layer, param in enumerate(gpn.parameters()):
+                    if layer in [22, 24]:
+                        # print(param.data.size())
+
+                        if layer == 22:
+                            print(param.data[2,:])
+                            # pass
+                        else:
+                            # print(param.data[:8])
+                            pass
+                        # print()
+
+            track_imgs = track_imgs.cuda().float()
+            det_imgs = det_imgs.cuda().float()
+            track_tlbrs = track_tlbrs.cuda().float()
+            det_tlbrs = det_tlbrs.cuda().float()
+            tlwh_histories = tlwh_histories.cuda().float()
+            tlwh_histories[:,:,0] /= 1088
+            tlwh_histories[:,:,1] /= 608
+            tlwh_histories[:,:,2] /= 1088
+            tlwh_histories[:,:,3] /= 608
             target_delta_bbox = target_delta_bbox.cuda().float()
 
-            # SGD burn-in
-            burnin = min(1000, len(dataloader))
-            if (epoch == 0) & (i <= burnin):
-                lr = opt.lr * (i / burnin) **4 
-                for g in optimizer.param_groups:
-                    g['lr'] = lr
+            # # SGD burn-in
+            # burnin = min(1000, len(dataloader))
+            # if (epoch == 0) & (i <= burnin):
+            #     lr = opt.lr * (i / burnin) **4
+            #     for g in optimizer.param_groups:
+            #         g['lr'] = lr
             
             # Compute loss, compute gradient, update parameters
             # loss, components = model(imgs.cuda(), targets.cuda(), targets_len.cuda())
             # components = torch.mean(components.view(-1, 5),dim=0)
 
-            delta_bbox = gpn(track_feat, det_feat)
+            delta_bbox = gpn(track_imgs, det_imgs, track_tlbrs, det_tlbrs, tlwh_histories)
             loss = smooth_l1_loss(delta_bbox, target_delta_bbox)
 
             # loss = torch.mean(loss)
@@ -193,7 +235,23 @@ def train(
             t0 = time.time()
             # if i % opt.print_interval == 0:
             #     logger.info(s)
-        
+
+
+            if i %100 == 0:
+                target_delta_bbox[:,0] *= 1088
+                target_delta_bbox[:,1] *= 608
+                target_delta_bbox[:,2] *= 1088
+                target_delta_bbox[:,3] *= 608
+
+                delta_bbox[:,0] *= 1088
+                delta_bbox[:,1] *= 608
+                delta_bbox[:,2] *= 1088
+                delta_bbox[:,3] *= 608
+
+                print()
+                print(delta_bbox)
+                print(target_delta_bbox)
+
         # # Save latest checkpoint
         # checkpoint = {'epoch': epoch,
         #               # 'model': gpn.module.state_dict(),
@@ -235,25 +293,47 @@ def train(
         # writer.add_scalar('test/loss', loss_test_mean, n_iter)
 
 
-
         gpn.eval()
 
         loss_test_sum = 0
 
-        for i, (track_feat, det_feat, target_delta_bbox) in enumerate(dataloader_test):
-            track_feat = track_feat.cuda().float()
-            det_feat = det_feat.cuda().float()
+        print()
+        print('test delta boxes and target delta boxes:')
+        for i, (track_imgs, det_imgs, track_tlbrs, det_tlbrs, tlwh_histories, target_delta_bbox) in enumerate(dataloader_test):
+
+            track_imgs = track_imgs.cuda().float()
+            det_imgs = det_imgs.cuda().float()
+            track_tlbrs = track_tlbrs.cuda().float()
+            det_tlbrs = det_tlbrs.cuda().float()
+            tlwh_histories = tlwh_histories.cuda().float()
             target_delta_bbox = target_delta_bbox.cuda().float()
 
-            delta_bbox = gpn(track_feat, det_feat)
-            print(delta_bbox)
-            print(target_delta_bbox)
-            print()
+            delta_bbox = gpn(track_imgs, det_imgs, track_tlbrs, det_tlbrs, tlwh_histories)
+            # print()
             loss = smooth_l1_loss(delta_bbox, target_delta_bbox)
             loss_test_sum += loss.cpu().detach().numpy()
 
+
+            if i%100 == 0:
+                target_delta_bbox[:,0] *= 1088
+                target_delta_bbox[:,1] *= 608
+                target_delta_bbox[:,2] *= 1088
+                target_delta_bbox[:,3] *= 608
+
+                delta_bbox[:,0] *= 1088
+                delta_bbox[:,1] *= 608
+                delta_bbox[:,2] *= 1088
+                delta_bbox[:,3] *= 608
+
+                print()
+                print(delta_bbox)
+                print(target_delta_bbox)
+
         loss_test_mean = loss_test_sum / len(dataloader_test)
+        print(loss_test_mean)
         writer.add_scalar('test/loss', loss_test_mean, n_iter)
+
+    writer.close()
 
 
 if __name__ == '__main__':
@@ -270,6 +350,7 @@ if __name__ == '__main__':
     parser.add_argument('--unfreeze-bn', action='store_true', help='unfreeze bn')
     parser.add_argument('--load-image', action='store_true', help='load image instead of features')
     parser.add_argument('--network', type=str, default='alexnet', help='alexnet or resnet')
+    parser.add_argument('--optim', type=str, default='sgd', help='optimizer')
     opt = parser.parse_args()
 
     init_seeds()
