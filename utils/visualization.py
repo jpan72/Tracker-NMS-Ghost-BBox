@@ -257,7 +257,7 @@ def plot_FN(image, tlwhs, obj_ids, acc_frame, seq, evaluator, scores=None, frame
 
 
 
-def plot_UR(image, tlwhs, obj_ids, acc_frame, seq, evaluator, scores=None, frame_id=0, fps=0., ids2=None, unrefined_boxes=None):
+def plot_UR(image, tlwhs, obj_ids, acc_frame, seq, evaluator, scores=None, frame_id=0, fps=0., ids2=None, unrefined_boxes=None, refined_boxes=None):
 
     im = np.ascontiguousarray(np.copy(image))
     im_h, im_w = im.shape[:2]
@@ -298,9 +298,19 @@ def plot_UR(image, tlwhs, obj_ids, acc_frame, seq, evaluator, scores=None, frame
     for i, tlbr in enumerate(unrefined_boxes):
         x1, y1, x2, y2 = tlbr
         intbox = tuple(map(int, (x1, y1, x2, y2)))
-        # print('light blue:')
-        # print(intbox)
-        cv2.rectangle(im, intbox[0:2], intbox[2:4], color=(230, 216, 173), thickness=int(line_thickness)) # orange
+        print('red:')
+        print(intbox)
+        cv2.rectangle(im, intbox[0:2], intbox[2:4], color=(0, 0, 255), thickness=int(line_thickness/2)) # orange
+
+
+    # draw refined boxes
+    for i, tlbr in enumerate(refined_boxes):
+        x1, y1, w, h = tlwh
+        intbox = tuple(map(int, (x1, y1, x1 + w, y1 + h)))
+        print('yellow:')
+        print(intbox)
+        cv2.rectangle(im, intbox[0:2], intbox[2:4], color=(0, 255, 255), thickness=int(line_thickness/2)) # orange
+
 
     return im
 

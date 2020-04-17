@@ -11,7 +11,7 @@ from torchvision.transforms import transforms as T
 from tensorboardX import SummaryWriter
 from datetime import datetime
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 def train(
         cfg,
@@ -177,18 +177,18 @@ def train(
         # for i, (track_imgs, track_tlbrs, tlwh_histories, target_delta_bbox) in enumerate(dataloader):
             n_iter = epoch * len(dataloader) + i
 
-            if i % 100 == 0:
-                for layer, param in enumerate(gpn.parameters()):
-                    if layer in [22, 24]:
-                        # print(param.data.size())
-
-                        if layer == 22:
-                            print(param.data[2,:])
-                            # pass
-                        else:
-                            # print(param.data[:8])
-                            pass
-                        # print()
+            # if i % 100 == 0:
+            #     for layer, param in enumerate(gpn.parameters()):
+            #         if layer in [22, 24]:
+            #             # print(param.data.size())
+            #
+            #             if layer == 22:
+            #                 print(param.data[2,:])
+            #                 # pass
+            #             else:
+            #                 # print(param.data[:8])
+            #                 pass
+            #             # print()
 
             track_imgs = track_imgs.cuda().float()
             det_imgs = det_imgs.cuda().float()

@@ -393,63 +393,10 @@ class JDETracker(object):
                 detections_g = ghost_dets
                 newly_matched = []
 
-            '''Mark unmatched tracks as lost'''
-            for it in u_track:
-                track = r_tracked_stracks[it]
-                if not track.state == TrackState.Lost:
-                    track.mark_lost()
-                    lost_stracks.append(track)
 
-            '''Deal with unconfirmed tracks, usually tracks with only one beginning frame'''
-            dists = matching.iou_distance(unconfirmed, detections)
-            matches, u_unconfirmed, u_detection = matching.linear_assignment(dists, thresh=0.7)
-            for itracked, idet in matches:
-                unconfirmed[itracked].update(detections[idet], self.frame_id)
-                activated_stracks.append(unconfirmed[itracked])
-            for it in u_unconfirmed:
-                track = unconfirmed[it]
-                track.mark_removed()
-                removed_stracks.append(track)
-
-            """ Step 4: Init new stracks"""
-            for inew in u_detection:
-                track = detections[inew]
-                if track.score < self.det_thresh:
-                    continue
-                track.activate(self.kalman_filter, self.frame_id)
-                activated_stracks.append(track)
-
-            """ Step 5: Update state"""
-            for track in self.lost_stracks:
-                if self.frame_id - track.end_frame > self.max_time_lost:
-                    track.mark_removed()
-                    removed_stracks.append(track)
-
-            self.tracked_stracks = [t for t in self.tracked_stracks if t.state == TrackState.Tracked]
-            self.tracked_stracks = joint_stracks(self.tracked_stracks, activated_stracks)
-            self.tracked_stracks = joint_stracks(self.tracked_stracks, refind_stracks)
-            self.lost_stracks = sub_stracks(self.lost_stracks, self.tracked_stracks)
-            self.lost_stracks.extend(lost_stracks)
-            self.lost_stracks = sub_stracks(self.lost_stracks, self.removed_stracks)
-            self.removed_stracks.extend(removed_stracks)
-            self.tracked_stracks, self.lost_stracks = remove_duplicate_stracks(self.tracked_stracks, self.lost_stracks)
-
-        # get scores of lost tracks
-        output_stracks = [track for track in self.tracked_stracks if track.is_activated]
-
-        logger.debug('===========Frame {}=========='.format(self.frame_id))
-        logger.debug('Activated: {}'.format([track.track_id for track in activated_stracks]))
-        logger.debug('Refind: {}'.format([track.track_id for track in refind_stracks]))
-        logger.debug('Lost: {}'.format([track.track_id for track in lost_stracks]))
-        logger.debug('Removed: {}'.format([track.track_id for track in removed_stracks]))
-
-        # print('===========Frame {}=========='.format(self.frame_id))
-        # print('Activated: {}'.format([track.track_id for track in activated_stracks]))
-        # print('Refind: {}'.format([track.track_id for track in refind_stracks]))
-        # print('Lost: {}'.format([track.track_id for track in lost_stracks]))
-        # print('Removed: {}'.format([track.track_id for track in removed_stracks]))
 
         unrefined_bbox = []
+        refined_bbox = []
         if self.frame_id > 1:
 
             # Match unmatched tracks with matched dets
@@ -500,21 +447,84 @@ class JDETracker(object):
                 delta_bbox = gpn(track_img.unsqueeze(0), det_img.unsqueeze(0),
                                  track_tlbr.unsqueeze(0), det_tlbr.unsqueeze(0),
                                  tlwh_history.unsqueeze(0))
+
+                unrefined_bbox.append(track.tlbr)
+
+                delta_bbox = delta_bbox[0].cpu().detach().numpy()
+                delta_bbox[0] *= 1088
+                delta_bbox[1] *= 608
+                delta_bbox[2] *= 1088
+                delta_bbox[3] *= 608
                 print()
-                print(track.mean[:4])
+                print(track.tlwh)
+                # import pdb; pdb.set_trace()
+                ghost_tlwh = track.tlwh + delta_bbox
 
-                unrefined_bbox.append(track.mean[:4])
-                track.mean[:4] += delta_bbox[0].cpu().detach().numpy()
+                # import pdb; pdb.set_trace()
+                refined_bbox.append(ghost_tlwh)
 
-                print(track.mean[:4])
+                print(ghost_tlwh)
 
+                track.update_ghost(ghost_tlwh, self.frame_id, update_feature=False)
+                track.ghost = True
+                activated_stracks.append(track)
 
                 # TODO: Train with negative examples
+
+        '''Mark unmatched tracks as lost'''
+        for it in u_track:
+            track = r_tracked_stracks[it]
+            if not track.state == TrackState.Lost:
+                track.mark_lost()
+                lost_stracks.append(track)
+
+        '''Deal with unconfirmed tracks, usually tracks with only one beginning frame'''
+        dists = matching.iou_distance(unconfirmed, detections)
+        matches, u_unconfirmed, u_detection = matching.linear_assignment(dists, thresh=0.7)
+        for itracked, idet in matches:
+            unconfirmed[itracked].update(detections[idet], self.frame_id)
+            activated_stracks.append(unconfirmed[itracked])
+        for it in u_unconfirmed:
+            track = unconfirmed[it]
+            track.mark_removed()
+            removed_stracks.append(track)
+
+        """ Step 4: Init new stracks"""
+        for inew in u_detection:
+            track = detections[inew]
+            if track.score < self.det_thresh:
+                continue
+            track.activate(self.kalman_filter, self.frame_id)
+            activated_stracks.append(track)
+
+        """ Step 5: Update state"""
+        for track in self.lost_stracks:
+            if self.frame_id - track.end_frame > self.max_time_lost:
+                track.mark_removed()
+                removed_stracks.append(track)
+
+        self.tracked_stracks = [t for t in self.tracked_stracks if t.state == TrackState.Tracked]
+        self.tracked_stracks = joint_stracks(self.tracked_stracks, activated_stracks)
+        self.tracked_stracks = joint_stracks(self.tracked_stracks, refind_stracks)
+        self.lost_stracks = sub_stracks(self.lost_stracks, self.tracked_stracks)
+        self.lost_stracks.extend(lost_stracks)
+        self.lost_stracks = sub_stracks(self.lost_stracks, self.removed_stracks)
+        self.removed_stracks.extend(removed_stracks)
+        self.tracked_stracks, self.lost_stracks = remove_duplicate_stracks(self.tracked_stracks, self.lost_stracks)
+
+        # get scores of lost tracks
+        output_stracks = [track for track in self.tracked_stracks if track.is_activated]
+
+        logger.debug('===========Frame {}=========='.format(self.frame_id))
+        logger.debug('Activated: {}'.format([track.track_id for track in activated_stracks]))
+        logger.debug('Refind: {}'.format([track.track_id for track in refind_stracks]))
+        logger.debug('Lost: {}'.format([track.track_id for track in lost_stracks]))
+        logger.debug('Removed: {}'.format([track.track_id for track in removed_stracks]))
 
         if opt.ghost_stats:
             return output_stracks, n_iter, last_ghosts, ghost_match_iou
         elif opt.vis_unrefined:
-            return output_stracks, unrefined_bbox
+            return output_stracks, unrefined_bbox, refined_bbox
         return output_stracks
 
     def update(self, im_blob, img0, opt, gpn):

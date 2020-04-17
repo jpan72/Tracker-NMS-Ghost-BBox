@@ -481,6 +481,8 @@ class JDETracker(object):
         tracks_selected = []
 
 
+        before_boxes = []
+        after_boxs = []
 
         if self.frame_id > 2:
             try:
@@ -530,7 +532,7 @@ class JDETracker(object):
                     track_id = miss_HId_p
 
                     track = None
-                    for x in self.lost_stracks:
+                    for x in r_tracked_stracks:
                         if x.track_id == track_id:
                             track = x
 
@@ -540,9 +542,13 @@ class JDETracker(object):
 
                     det = map1[track_id]
 
-                    print(self.frame_id)
-                    print(FN_tlwh, track.mean[:4].astype(np.int), det.tlbr)
-                    target_delta_bbox = FN_tlwh - track.mean[:4]
+                    # print(self.frame_id)
+                    # print(FN_tlwh, track.mean[:4].astype(np.int), det.tlbr)
+                    target_delta_bbox = FN_tlwh - track.tlwh
+
+                    before_boxes.append(track.tlwh)
+                    after_boxs.append(FN_tlwh)
+
                     np.savez(save_path, track_feat=track.img_patch, det_feat=det.img_patch,
                              track_tlbr=track.tlbr, det_tlbr=det.tlbr, tlwh_history=track.tlwh_buffer,
                              target_delta_bbox=target_delta_bbox)
@@ -599,6 +605,8 @@ class JDETracker(object):
             return output_stracks, n_iter, last_ghosts, ghost_match_iou
         if opt.vis_FN:
             return output_stracks, n_iter, FN_tlbrs_selected, tracks_selected
+        if opt.vis_UR:
+            return output_stracks, n_iter, before_boxes, after_boxs
         return output_stracks, n_iter
 
     def update(self, im_blob, img0, opt, evaluator, writer, n_iter, path):

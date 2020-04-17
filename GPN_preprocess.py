@@ -22,7 +22,7 @@ from utils.datasets import JointDataset, collate_fn
 from utils.utils import *
 from models import *
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "3"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 
 def write_results(filename, results, data_type, dataset):
@@ -76,6 +76,8 @@ def eval_seq(opt, dataloader, data_type, result_filename, evaluator, writer, n_i
             ghost_match_ious.extend(ghost_match_iou)
         elif opt.vis_FN:
             online_targets, n_iter, FN_tlbrs_selected, track_tlbrs_selected = tracker.update(blob, img0, opt, evaluator, writer, n_iter, path)
+        elif opt.vis_UR:
+            online_targets, n_iter, before_boxes, after_boxes = tracker.update(blob, img0, opt, evaluator, writer, n_iter, path)
         else:
             online_targets, n_iter = tracker.update(blob, img0, opt, evaluator, writer, n_iter, path)
 
@@ -108,13 +110,16 @@ def eval_seq(opt, dataloader, data_type, result_filename, evaluator, writer, n_i
         if opt.vis_FN:
             plot_arguments.append((img0, online_tlwhs, online_ids, frame_id, 1. / timer.average_time, FN_tlbrs_selected, track_tlbrs_selected))
 
+        if opt.vis_UR:
+            plot_arguments.append((img0, online_tlwhs, online_ids, frame_id, 1. / timer.average_time, before_boxes, after_boxes))
+
         frame_id += 1
 
     # save results
     write_results(result_filename, results, data_type, opt.dataset)
     if opt.save_debug or opt.count_fn:
         return frame_id, timer.average_time, timer.calls, n_iter, plot_arguments
-    elif opt.vis_FN:
+    elif opt.vis_FN or opt.vis_UR:
         return frame_id, timer.average_time, timer.calls, n_iter, plot_arguments
     if opt.ghost_stats:
         return frame_id, timer.average_time, timer.calls, n_iter, ghost_sequence, ghost_match_ious
@@ -187,7 +192,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
         if opt.save_debug or opt.count_fn:
             nf, ta, tc, n_iter, plot_arguments = eval_seq(opt, dataloader, data_type, result_filename, evaluator, writer, n_iter,
                                                   save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
-        elif opt.vis_FN:
+        elif opt.vis_FN or opt.vis_UR:
             print('here')
             nf, ta, tc, n_iter, plot_arguments = eval_seq(opt, dataloader, data_type, result_filename, evaluator, writer, n_iter,
                                                   save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
@@ -265,6 +270,32 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             os.system(cmd_str)
             os.system("rm -R {}".format(FN_dir))
 
+
+        if opt.vis_UR:
+
+            UR_dir = os.path.join(opt.UR_images, opt.dataset)
+            if not osp.exists(UR_dir):
+                os.makedirs(UR_dir)
+
+            for img0, online_tlwhs, online_ids, frame_id, fps, before_boxes, after_boxes in plot_arguments:
+                try:
+                    UR_im = vis.plot_UR(img0, online_tlwhs, online_ids, acc.mot_events.loc[frame_id], seq,
+                                             evaluator,
+                                             frame_id=frame_id, fps=fps, unrefined_boxes=before_boxes, refined_boxes=after_boxes)
+
+                    cv2.imwrite(os.path.join(UR_dir, '{:05d}.jpg'.format(frame_id)), UR_im)
+
+                except:
+                    cv2.imwrite(os.path.join(UR_dir, '{:05d}.jpg'.format(frame_id)), img0)
+
+            UR_video_folder = osp.join(opt.UR_videos, opt.dataset)
+            if not osp.exists(UR_video_folder):
+                os.makedirs(UR_video_folder)
+            UR_video_path = osp.join(UR_video_folder, '{}_FN.mp4'.format(seq))
+
+            cmd_str = 'ffmpeg -y -f image2 -i {}/%05d.jpg -c:v copy {}'.format(UR_dir, UR_video_path)
+            os.system(cmd_str)
+            os.system("rm -R {}".format(UR_dir))
 
         if opt.count_fn:
             for img0, online_tlwhs, online_ids, frame_id, fps in plot_arguments:
@@ -408,6 +439,8 @@ if __name__ == '__main__':
     parser.add_argument('--ld', type=float, default=0.5, help='lambda for regression loss')
     parser.add_argument('--lr', type=float, default=0.1, help='GPN learning rate')
     parser.add_argument('--occ-reason-thres', type=float, default=0.5, help='GPN learning rate')
+    parser.add_argument('--UR-images', type=str, default='../exp/GT_UR_images', help='path to unrefined boxes visualization')
+    parser.add_argument('--UR-videos', type=str, default='../exp/GT_UR_videos', help='path to unrefined boxes visualization')
 
     # parser.add_argument('--test-mot17', action='store_true', help='tracking buffer')
     parser.add_argument('--save-images', action='store_true', help='save tracking results (image)')
@@ -432,6 +465,7 @@ if __name__ == '__main__':
     parser.add_argument('--thresholding-occ-reason', action='store_true', help='using threshold/min-distance for occlusion reasoning when generating GT ghost box')
     parser.add_argument('--use-featmap', action='store_true', help='use feature map for GRN, instead of feature vector')
     parser.add_argument('--vis-FN', action='store_true', help='visualize matched FNs and all FNs')
+    parser.add_argument('--vis-UR', action='store_true', help='visualize matched FNs and all FNs')
 
     opt = parser.parse_args()
     print(opt, end='\n\n')

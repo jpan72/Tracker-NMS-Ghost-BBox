@@ -493,16 +493,18 @@ class GPN(nn.Module):
         ht = self.dropout(ht)
         lstm_bboxes = self.lstm_reg(ht[-1])
         cnn_bboxes = track_tlwhs + delta_bbox
+        # import pdb; pdb.set_trace()
 
         delta_bbox = torch.zeros(track_tlbrs.size()).cuda()
         bs = track_imgs.size(0)
         for i in range(bs):
             vis_i = visibility[i,i]
-            # if vis_i < self.vis_thres:
-            if True:
+            if vis_i < self.vis_thres:
+            # if True:
+            # if False:
                 delta_bbox[i] = lstm_bboxes[i]
             else:
-                delta_bbox[i] = lstm_bboxes[i] * vis_i + cnn_bboxes * (1 - vis_i)
+                delta_bbox[i] = lstm_bboxes[i] * (1 - vis_i) + cnn_bboxes * vis_i
 
         return delta_bbox
 

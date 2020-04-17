@@ -37,7 +37,7 @@ def write_results(filename, results, data_type, dataset):
                 if track_id < 0:
                     continue
                 x1, y1, w, h = tlwh
-                if dataset in ['mot15_train', 'mot15_test'] and h < 59:
+                if dataset in ['mot15_train', 'mot15_test', 'mot15_train_unique', 'mot15_train_useful'] and h < 59:
                     continue
                 x2, y2 = x1 + w, y1 + h
                 line = save_format.format(frame=frame_id, id=track_id, x1=x1, y1=y1, x2=x2, y2=y2, w=w, h=h)
@@ -71,7 +71,11 @@ def eval_seq(opt, gpn, dataloader, data_type, result_filename, save_dir=None, sh
             ghost_match_ious.extend(ghost_match_iou)
 
         elif opt.vis_unrefined:
-            online_targets, unrefined_bbox = tracker.update(blob, img0, opt, gpn)
+            online_targets, unrefined_bbox, refined_bbox = tracker.update(blob, img0, opt, gpn)
+            # print('unrefined:')
+            # print(unrefined_bbox)
+            # print('refined')
+            # print(refined_bbox)
         else:
             online_targets = tracker.update(blob, img0, opt, gpn)
 
@@ -102,7 +106,7 @@ def eval_seq(opt, gpn, dataloader, data_type, result_filename, save_dir=None, sh
             plot_arguments.append((img0, online_tlwhs, online_ids, frame_id, 1./timer.average_time))
 
         if opt.vis_unrefined:
-            plot_arguments.append((img0, online_tlwhs, online_ids, frame_id, 1./timer.average_time, unrefined_bbox))
+            plot_arguments.append((img0, online_tlwhs, online_ids, frame_id, 1./timer.average_time, unrefined_bbox, refined_bbox))
 
         frame_id += 1
 
@@ -166,9 +170,9 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             frame_rate = 30
 
         if opt.save_debug or opt.count_fn or opt.vis_unrefined:
-            nf, ta, tc, plot_arguments = eval_seq(opt, dataloader, data_type, result_filename,
+            nf, ta, tc, plot_arguments = eval_seq(opt, gpn, dataloader, data_type, result_filename,
                                 save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
-        if opt.ghost_stats:
+        elif opt.ghost_stats:
             nf, ta, tc, ghost_sequence, ghost_match_ious = eval_seq(opt, dataloader, data_type, result_filename,
                                 save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
         else:
@@ -190,11 +194,11 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             if not osp.exists(UR_dir):
                 os.makedirs(UR_dir)
 
-            for img0, online_tlwhs, online_ids, frame_id, fps, unrefined_boxes in plot_arguments:
+            for img0, online_tlwhs, online_ids, frame_id, fps, unrefined_boxes, refined_boxes in plot_arguments:
                 try:
                     UR_im = vis.plot_UR(img0, online_tlwhs, online_ids, acc.mot_events.loc[frame_id], seq,
                                              evaluator,
-                                             frame_id=frame_id, fps=fps, unrefined_boxes=unrefined_boxes)
+                                             frame_id=frame_id, fps=fps, unrefined_boxes=unrefined_boxes, refined_boxes=refined_boxes)
 
                     cv2.imwrite(os.path.join(UR_dir, '{:05d}.jpg'.format(frame_id)), UR_im)
 
@@ -389,7 +393,7 @@ if __name__ == '__main__':
     parser.add_argument('--ghost-stats', action='store_true', help='get IoU statistics between all proposed ghosts and FNs')
     parser.add_argument('--save-lt', action='store_true', help='use ghost only for reactivate lost tracks; for each lost track, see if there is a ghost where IoU > threshold')
     parser.add_argument('--ghost-track', action='store_true', help='use ghost track instead ghost detection')
-    parser.add_argument('--vis_unrefined', action='store_true', help='visualize unrefined ghost boxes')
+    parser.add_argument('--vis-unrefined', action='store_true', help='visualize unrefined ghost boxes')
 
     opt = parser.parse_args()
     print(opt, end='\n\n')
@@ -443,6 +447,7 @@ if __name__ == '__main__':
                       TUD-Stadtmitte
                       Venice-2
                     '''
+        seqs_str = "ADL-Rundle-8"
         data_root = '/hdd/yongxinw/2DMOT2015/train/'
 
     elif opt.dataset == 'mot15_train_useful':
