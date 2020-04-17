@@ -60,6 +60,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, evaluator, writer, n_i
     ghost_sequence = []
     ghost_match_ious = []
 
+    online_targets = []
     for path, img, img0 in dataloader:
         if frame_id % 200 == 0:
             logger.info('Processing frame {} ({:.2f} fps)'.format(frame_id, 1. / max(1e-5, timer.average_time)))
@@ -238,12 +239,13 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             os.system("rm -R {}".format(debug_dir))
 
         if opt.vis_FN:
+            print('using FN!!!!!!!')
 
             FN_dir = os.path.join(opt.FN_images, opt.dataset)
             if not osp.exists(FN_dir):
                 os.makedirs(FN_dir)
 
-            for img0, online_tlwhs, online_ids, frame_id, fps, FN_tlbrs_selected, track_tlbr_selected in plot_arguments:
+            for img0, online_tlwhs, online_ids, frame_id, fps, FN_tlbrs_selected, track_tlbrs_selected in plot_arguments:
                 try:
                     FN_im = vis.plot_FN(img0, online_tlwhs, online_ids, acc.mot_events.loc[frame_id], seq,
                                              evaluator,

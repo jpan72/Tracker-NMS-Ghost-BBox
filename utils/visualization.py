@@ -152,7 +152,7 @@ def count_fn_debug(image, tlwhs, obj_ids, acc_frame, seq, evaluator, u8scores=No
 
     radius = max(5, int(im_w/140.))
     cv2.putText(im, 'frame: %d fps: %.2f num: %d' % (frame_id, fps, len(tlwhs)),
-                (0, int(15 * text_scale)), cv2.FONT_HERSHEY_PLAIN, text_scale, (0, 0, 255), thickness=2)
+                (0, int(15 * text_scale)), cv2.FONT_HERSHpreprocess_multitracker.pyEY_PLAIN, text_scale, (0, 0, 255), thickness=2)
 
 
     for i, tlwh in enumerate(tlwhs):
@@ -242,15 +242,15 @@ def plot_FN(image, tlwhs, obj_ids, acc_frame, seq, evaluator, scores=None, frame
     for i, tlbr in enumerate(FN_tlbrs_selected):
         x1, y1, x2, y2 = tlbr
         intbox = tuple(map(int, (x1, y1, x2, y2)))
-        # print('orange:')
-        # print(intbox)
+        print('orange:')
+        print(intbox)
         cv2.rectangle(im, intbox[0:2], intbox[2:4], color=(0, 140, 255), thickness=int(line_thickness)) # orange
 
     for i, tlbr in enumerate(track_tlbrs_selected):
         x1, y1, x2, y2 = tlbr
         intbox = tuple(map(int, (x1, y1, x2, y2)))
-        # print('pink:')
-        # print(intbox)
+        print('pink:')
+        print(intbox)
         cv2.rectangle(im, intbox[0:2], intbox[2:4], color=(180, 205, 255), thickness=int(line_thickness)) # orange
 
     return im

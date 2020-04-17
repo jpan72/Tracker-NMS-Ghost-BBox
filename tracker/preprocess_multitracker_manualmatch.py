@@ -27,7 +27,6 @@ class STrack(BaseTrack):
         self._tlwh = np.asarray(tlwh, dtype=np.float)
         self.kalman_filter = None
         self.mean, self.covariance = None, None
-
         self.is_activated = False
 
         self.score = score
@@ -437,125 +436,6 @@ class JDETracker(object):
                 track.mark_lost()
                 lost_stracks.append(track)
 
-
-        self.tracked_stracks = [t for t in self.tracked_stracks if t.state == TrackState.Tracked]
-        self.tracked_stracks = joint_stracks(self.tracked_stracks, activated_stracks)
-        self.tracked_stracks = joint_stracks(self.tracked_stracks, refind_stracks)
-        self.lost_stracks = sub_stracks(self.lost_stracks, self.tracked_stracks)
-        self.lost_stracks.extend(lost_stracks)
-        self.lost_stracks = sub_stracks(self.lost_stracks, self.removed_stracks)
-        self.removed_stracks.extend(removed_stracks)
-        self.tracked_stracks, self.lost_stracks = remove_duplicate_stracks(self.tracked_stracks, self.lost_stracks)
-
-        # get scores of lost tracks
-        output_stracks = [track for track in self.tracked_stracks if track.is_activated]
-
-        # logger.debug('===========Frame {}=========='.format(self.frame_id))
-        # logger.debug('Activated: {}'.format([track.track_id for track in activated_stracks]))
-        # logger.debug('Refind: {}'.format([track.track_id for track in refind_stracks]))
-        # logger.debug('Lost: {}'.format([track.track_id for track in lost_stracks]))
-        # logger.debug('Removed: {}'.format([track.track_id for track in removed_stracks]))
-        #
-
-        ''' Collect data for GPN'''
-
-        prefix = path.split('img1')[0]
-        if opt.use_featmap:
-            dataset_root = '../preprocess-ghost-bbox-th{}-map-more-filter/'.format(opt.occ_reason_thres)
-        else:
-            dataset_root = '../preprocess-ghost-bbox-th0.6/'
-        save_dir = osp.join(prefix, 'preprocess').replace('/hdd/yongxinw/', dataset_root)
-        if not osp.exists(save_dir):
-            os.makedirs(save_dir)
-        save_path = path.replace('/hdd/yongxinw/', dataset_root).replace('img1', 'preprocess').replace('.png', '').replace('.jpg', '')
-
-
-        # Use motmetrics to find FNs
-
-        trk_tlwhs = [track.tlwh for track in output_stracks]
-        trk_ids = [track.track_id for track in output_stracks]
-        # trk_ids = np.arange(len(trk_tlwhs))
-        evaluator.eval_frame(self.frame_id, trk_tlwhs, trk_ids, rtn_events=False)
-
-        FN_tlbrs_selected = []
-        tracks_selected = []
-
-
-
-        if self.frame_id > 2:
-            try:
-                # Match unmatched tracks with matched dets
-                unmatched_tracks = [r_tracked_stracks[it] for it in u_track]
-                dists = matching.iou_distance(unmatched_tracks, detections_g)
-                if thresholding_occ_reason:
-                    if len(unmatched_tracks) > 0 and len(detections_g) > 0:
-                        um_det_matches = list(zip(range(len(unmatched_tracks)), dists.argmin(axis=1)))
-                        dists_min = dists.min(axis=1)
-                        um_det_matches = np.array(um_det_matches)[dists_min <= occ_reason_thres,:]
-                    else:
-                        um_det_matches = []
-                else:
-                    um_det_matches, u_track, u_detection = matching.linear_assignment(dists, thresh=occ_reason_thres)
-
-                map1 = {}
-                for um, det in um_det_matches:
-                    map1[unmatched_tracks[um].track_id] = detections_g[det]
-
-
-                # todo: fix the bug in try part
-                acc_frame = evaluator.acc.mot_events.loc[self.frame_id-1]
-                miss_rows = acc_frame[acc_frame.Type.eq('MISS')]
-                miss_OIds = miss_rows.OId.values
-
-                gt_objs = evaluator.gt_frame_dict.get(self.frame_id, [])
-                gt_tlwhs, gt_ids = unzip_objs(gt_objs)[:2]
-
-                acc_frame_p = evaluator.acc.mot_events.loc[self.frame_id-2]
-
-                for miss_OId in miss_OIds:
-                    # print()
-                    # print(self.frame_id)
-                    # import pdb; pdb.set_trace()
-
-                    FN_tlwh = gt_tlwhs[gt_ids==miss_OId][0]
-                    FN_tlbrs_selected.append(STrack.tlwh_to_tlbr(FN_tlwh))
-
-                    miss_HId_p = acc_frame_p[acc_frame_p.OId.eq(miss_OId)].HId.values
-                    if len(miss_HId_p) == 0:
-                        # print('cannot find miss OId from tracks in previous frame')
-                        continue
-                    else:
-                        miss_HId_p = miss_HId_p[0]
-
-                    track_id = miss_HId_p
-
-                    track = None
-                    for x in self.lost_stracks:
-                        if x.track_id == track_id:
-                            track = x
-
-                    if track == None or track.track_id not in map1:
-                        # print('cannot find track ID from lost tracks in current frame')
-                        continue
-
-                    det = map1[track_id]
-
-                    print(self.frame_id)
-                    print(FN_tlwh, track.mean[:4].astype(np.int), det.tlbr)
-                    target_delta_bbox = FN_tlwh - track.mean[:4]
-                    np.savez(save_path, track_feat=track.img_patch, det_feat=det.img_patch,
-                             track_tlbr=track.tlbr, det_tlbr=det.tlbr, tlwh_history=track.tlwh_buffer,
-                             target_delta_bbox=target_delta_bbox)
-
-                    # print('except, updating with FN tlwh')
-                    # add FN to the tracked pool
-                    x,y,w,h = FN_tlwh.astype(int)
-                    track.update_FN(FN_tlwh, self.frame_id, img0[y:y+h, x:x+w, :])
-                    activated_stracks.append(track)
-            except:
-                pass
-
-
         '''Deal with unconfirmed tracks, usually tracks with only one beginning frame'''
         dists = matching.iou_distance(unconfirmed, detections)
         matches, u_unconfirmed, u_detection = matching.linear_assignment(dists, thresh=0.7)
@@ -590,6 +470,195 @@ class JDETracker(object):
         self.removed_stracks.extend(removed_stracks)
         self.tracked_stracks, self.lost_stracks = remove_duplicate_stracks(self.tracked_stracks, self.lost_stracks)
 
+        # get scores of lost tracks
+        output_stracks = [track for track in self.tracked_stracks if track.is_activated]
+
+        logger.debug('===========Frame {}=========='.format(self.frame_id))
+        logger.debug('Activated: {}'.format([track.track_id for track in activated_stracks]))
+        logger.debug('Refind: {}'.format([track.track_id for track in refind_stracks]))
+        logger.debug('Lost: {}'.format([track.track_id for track in lost_stracks]))
+        logger.debug('Removed: {}'.format([track.track_id for track in removed_stracks]))
+
+        # print('===========Frame {}=========='.format(self.frame_id))
+        # print('Activated: {}'.format([track.track_id for track in activated_stracks]))
+        # print('Refind: {}'.format([track.track_id for track in refind_stracks]))
+        # print('Lost: {}'.format([track.track_id for track in lost_stracks]))
+        # print('Removed: {}'.format([track.track_id for track in removed_stracks]))
+
+
+        ''' Collect data for GPN'''
+
+        # Use motmetrics to find FNs
+        # gt_objs = evaluator.gt_frame_dict.get(frame_id+1, [])
+        # ghost_fn_overlap, num_fn_i, fn_closest_ghost_overlap = vis.get_overlap(ghost_tlwhs,
+        #                                                                        acc.mot_events.loc[frame_id],
+        #                                                                        seq, evaluator,
+        #                                                                        frame_id=frame_id)
+        trk_tlwhs = [track.tlwh for track in output_stracks]
+        trk_ids = np.arange(len(trk_tlwhs))
+        acc = evaluator.eval_frame(self.frame_id, trk_tlwhs, trk_ids, rtn_events=True) # self.frame_id will start from 1
+
+        # print(evaluator.acc.mot_events)
+
+        FN_tlbrs_selected = []
+        tracks_selected = []
+        if self.frame_id > 1:
+
+            acc_frame = evaluator.acc.mot_events.loc[self.frame_id-1]
+            miss_rows = acc_frame[acc_frame.Type.eq('MISS')]
+            miss_OIds = miss_rows.OId.values
+
+            # gt_objs = evaluator.gt_frame_dict.get(self.frame_id-1, [])
+            gt_objs = evaluator.gt_frame_dict.get(self.frame_id, [])
+            gt_tlwhs, gt_ids = unzip_objs(gt_objs)[:2]
+
+            FN_tlwhs = []
+            for miss_OId in miss_OIds:
+                try:
+                    FN_tlwhs.append(gt_tlwhs[gt_ids==miss_OId][0])
+                except:
+                    continue
+            # FN_tlwhs = [gt_tlwhs[gt_ids==miss_OId][0] for miss_OId in miss_OIds]
+            FN_tlbrs = [STrack.tlwh_to_tlbr(x) for x in FN_tlwhs]
+
+            # Match unmatched tracks with matched dets
+            unmatched_tracks = [r_tracked_stracks[it] for it in u_track]
+            dists = matching.iou_distance(unmatched_tracks, detections_g)
+            if thresholding_occ_reason:
+                if len(unmatched_tracks) > 0 and len(detections_g) > 0:
+                    um_det_matches = list(zip(range(len(unmatched_tracks)), dists.argmin(axis=1)))
+                    dists_min = dists.min(axis=1)
+                    um_det_matches = np.array(um_det_matches)[dists_min <= occ_reason_thres,:]
+                else:
+                    um_det_matches = []
+            else:
+                um_det_matches, u_track, u_detection = matching.linear_assignment(dists, thresh=occ_reason_thres)
+
+            map1 = {}
+            for um, det in um_det_matches:
+                map1[um] = det
+
+            # Match unmatched tracks with FNs
+            um_tlbrs = [trk.tlbr for trk in unmatched_tracks]
+            dists = matching.iou_distance(um_tlbrs, FN_tlbrs)
+
+            if thresholding_occ_reason:
+                if len(um_tlbrs) > 0 and len(FN_tlbrs) > 0:
+                    um_FN_matches = list(zip(range(len(um_tlbrs)), dists.argmin(axis=1)))
+                    dists_min = dists.min(axis=1)
+                    um_FN_matches = np.array(um_FN_matches)[dists_min <= occ_reason_thres,:]
+                else:
+                    um_FN_matches = []
+            else:
+                um_FN_matches, u_track, u_detection = matching.linear_assignment(dists, thresh=occ_reason_thres)
+
+
+            map2 = {}
+            for um, FN in um_FN_matches:
+                map2[um] = FN
+            FN_tlbrs_selected = [FN_tlbrs[j] for (_, j) in um_FN_matches]
+            tracks_selected = [um_tlbrs[x] for (x, _) in um_FN_matches]
+
+            um1 = [x[0] for x in um_det_matches]
+            um2 = [x[0] for x in um_FN_matches]
+            common_ums = list(set(um1) & set(um2))
+
+            # prefix = path.split('images')[0]
+            # save_dir = osp.join(prefix, 'preprocess')
+            # if not osp.exists(save_dir):
+            #     os.makedirs(save_dir)
+            # save_path = path.replace('images', 'preprocess').replace('.png', '.npy').replace('.jpg', '.npy')
+
+            prefix = path.split('img1')[0]
+            if opt.use_featmap:
+                dataset_root = '../preprocess-ghost-bbox-th{}-map-more-filter/'.format(opt.occ_reason_thres)
+            else:
+                dataset_root = '../preprocess-ghost-bbox-th0.6/'
+            save_dir = osp.join(prefix, 'preprocess').replace('/hdd/yongxinw/', dataset_root)
+            if not osp.exists(save_dir):
+                os.makedirs(save_dir)
+            save_path = path.replace('/hdd/yongxinw/', dataset_root).replace('img1', 'preprocess').replace('.png', '').replace('.jpg', '')
+
+
+            # Train GPN
+            # Positive samples:
+            #    - Inputs: (for matched track-det pairs) mean and cov of track, track_feat, det_feat
+            #    - Target: mean (tlbr) of FN, conf = 1
+            # Negative samples:
+            #    - Inputs: (for unmatched track and det) mean and cov of track, track_feat, det_feat
+            #    - Target: mean (tlbr) of FN, conf = 0
+
+            if len(common_ums) > 0:
+                ind_select = np.random.randint(0, len(common_ums))
+            # for ind_track in common_ums:
+            for i in range(len(common_ums)):
+
+                if i != ind_select:
+                    continue
+                ind_track = common_ums[i]
+
+                track = r_tracked_stracks[ind_track]
+                ind_det = map1[ind_track]
+                ind_FN = map2[ind_track]
+
+                det = detections_g[ind_det]
+                target_delta_bbox = FN_tlwhs[ind_FN] - track.mean[:4]
+                # print(target_delta_bbox)
+
+                if abs(target_delta_bbox[0]) > 100 or abs(target_delta_bbox[1]) > 100/1088*608:
+                    continue
+
+                if use_featmap:
+                    if track.img_patch.shape[0] < 5 or track.img_patch.shape[1] < 5 or \
+                        det.img_patch.shape[0] < 5 or det.img_patch.shape[1] < 5:
+                        continue
+                    # np.savez(save_path, track_feat=track.img_patch, det_feat=det.img_patch, target_delta_bbox=target_delta_bbox)
+                    np.savez(save_path, track_feat=track.img_patch, det_feat=det.img_patch,
+                             track_tlbr=track.tlbr, det_tlbr=det.tlbr, tlwh_history=track.tlwh_buffer,
+                             target_delta_bbox=target_delta_bbox)
+                else:
+                    np.savez(save_path, track_feat=track.smooth_feat, det_feat=det.smooth_feat, target_delta_bbox=target_delta_bbox)
+
+                # add FN to the tracked pool
+                x,y,w,h = FN_tlwhs[ind_FN].astype(int)
+                track.update_FN(FN_tlwhs[ind_FN], self.frame_id, img0[y:y+h, x:x+w, :])
+                activated_stracks.append(track)
+
+                #
+                # track_feat = torch.Tensor(track.smooth_feat).cuda()
+                # det_feat = torch.Tensor(det.smooth_feat).cuda()
+                # target_delta_bbox = torch.Tensor(target_delta_bbox).cuda()
+
+                # delta_bbox = self.gpn(track_feat, det_feat)
+                #
+                # loss_reg = self.loss_reg(delta_bbox, target_delta_bbox)
+                #
+                # # loss_conf = self.loss_conf(conf, target_conf)
+                # loss = loss_reg
+                # # loss = opt.ld * loss_reg + (1-opt.ld) * loss_conf
+                # print(loss)
+                #
+                # loss_val = loss.cpu().detach().numpy()
+                # writer.add_scalar('train/loss', loss_val, n_iter)
+                # n_iter += 1
+                #
+                # self.optimizer.zero_grad()
+                # loss.backward()
+                # self.optimizer.step()
+
+                # TODO: Train with negative examples
+
+            # except:
+            #     pass
+
+        self.tracked_stracks = [t for t in self.tracked_stracks if t.state == TrackState.Tracked]
+        self.tracked_stracks = joint_stracks(self.tracked_stracks, activated_stracks)
+        self.tracked_stracks = joint_stracks(self.tracked_stracks, refind_stracks)
+        self.lost_stracks = sub_stracks(self.lost_stracks, self.tracked_stracks)
+        self.lost_stracks.extend(lost_stracks)
+        self.lost_stracks = sub_stracks(self.lost_stracks, self.removed_stracks)
+        self.removed_stracks.extend(removed_stracks)
+        self.tracked_stracks, self.lost_stracks = remove_duplicate_stracks(self.tracked_stracks, self.lost_stracks)
 
         # update output_stracks
         output_stracks = [track for track in self.tracked_stracks if track.is_activated]

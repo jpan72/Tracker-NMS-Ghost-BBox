@@ -438,6 +438,33 @@ class GPN(nn.Module):
         self.dropout = nn.Dropout()
 
 
+    # def forward(self, track_imgs, track_tlbrs,  tlwh_histories):
+    #     """
+    #     track_imgs: bs, 3, h, w
+    #     det_imgs: bs, 3, h, w
+    #     track_tlbrs: bs, 4
+    #     det_tlbrs: bs, 4
+    #     bbox_histories: bs, history_size, 4
+    #     """
+    #
+    #
+    #     track_tlwhs = track_tlbrs
+    #     track_tlwhs[:,2:4] -= track_tlwhs[:,0:2]
+    #
+    #     _, (ht, _) = self.lstm(tlwh_histories)
+    #     ht = self.dropout(ht)
+    #     lstm_bboxes = self.lstm_reg(ht[-1])
+    #
+    #     delta_bbox = torch.zeros(track_tlbrs.size()).cuda()
+    #     bs = track_imgs.size(0)
+    #     for i in range(bs):
+    #         if True:
+    #             delta_bbox[i] = lstm_bboxes[i]
+    #
+    #
+    #     return delta_bbox
+
+    #
     def forward(self, track_imgs, det_imgs, track_tlbrs, det_tlbrs, tlwh_histories):
         """
         track_imgs: bs, 3, h, w

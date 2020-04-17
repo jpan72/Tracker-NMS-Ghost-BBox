@@ -17,7 +17,9 @@ from utils.utils import *
 import numpy as np
 import matplotlib.pyplot as plt
 
-os.environ["CUDA_VISIBLE_DEVICES"]="2"
+from models import *
+
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 def write_results(filename, results, data_type, dataset):
     if data_type == 'mot':
@@ -43,7 +45,7 @@ def write_results(filename, results, data_type, dataset):
     logger.info('save results to {}'.format(filename))
 
 
-def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_image=True, frame_rate=30):
+def eval_seq(opt, gpn, dataloader, data_type, result_filename, save_dir=None, show_image=True, frame_rate=30):
     if save_dir:
         mkdir_if_missing(save_dir)
     tracker = JDETracker(opt, frame_rate=frame_rate)
@@ -69,7 +71,7 @@ def eval_seq(opt, dataloader, data_type, result_filename, save_dir=None, show_im
             ghost_match_ious.extend(ghost_match_iou)
 
         else:
-            online_targets = tracker.update(blob, img0, opt)
+            online_targets = tracker.update(blob, img0, opt, gpn)
 
         online_tlwhs = []
         online_ids = []
@@ -128,6 +130,11 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
     if opt.count_fn or opt.ghost_stats:
         fig, axs = plt.subplots(2, 4, sharey=True, tight_layout=True)
 
+    # initialize GRN and load trained weights
+    gpn = GPN().cuda()
+    gpn.eval()
+    gpn.load_state_dict(torch.load(opt.load_path))
+
     # for seq in seqs:
     for i, seq in enumerate(seqs):
 
@@ -160,7 +167,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
             nf, ta, tc, ghost_sequence, ghost_match_ious = eval_seq(opt, dataloader, data_type, result_filename,
                                 save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
         else:
-            nf, ta, tc = eval_seq(opt, dataloader, data_type, result_filename,
+            nf, ta, tc = eval_seq(opt, gpn, dataloader, data_type, result_filename,
                                   save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
         n_frame += nf
         timer_avgs.append(ta)
@@ -330,6 +337,8 @@ if __name__ == '__main__':
     parser.add_argument('--save-thres', type=float, default=0.5, help='number of additional ghost boxes for each detection')
     parser.add_argument('--KF-var-mult', type=float, default=1, help='multiplier of KF variance for ghost matches')
     parser.add_argument('--N', type=int, default=1, help='number of ghost track copies for each unmatched track')
+    parser.add_argument('--load-path', type=str, default='model.pth', help='path to load model')
+    parser.add_argument('--network', type=str, default='alexnet', help='alexnet or resnet')
 
     # parser.add_argument('--test-mot17', action='store_true', help='tracking buffer')
     parser.add_argument('--save-images', action='store_true', help='save tracking results (image)')
@@ -357,6 +366,17 @@ if __name__ == '__main__':
                       MOT17-05-SDP
                       MOT17-09-SDP
                       MOT17-10-SDP
+                      MOT17-11-SDP
+                      MOT17-13-SDP
+                    '''
+        # seqs_str = '''MOT17-13-SDP
+        #             '''
+        data_root = '/hdd/yongxinw/MOT17/MOT17/train'
+
+    elif opt.dataset == 'mot17_train_unique':
+        seqs_str = '''MOT17-02-SDP
+                      MOT17-04-SDP
+                      MOT17-05-SDP  
                       MOT17-11-SDP
                       MOT17-13-SDP
                     '''

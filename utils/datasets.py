@@ -438,8 +438,11 @@ class GhostDataset(Dataset):
         # return self.transforms(Image.fromarray(data['track_feat'])), self.transforms(Image.fromarray(data['det_feat'])), data['target_delta_bbox']
         # return self.transforms(data['track_feat']), self.transforms(data['det_feat']), data['target_delta_bbox']
 
+
         track_feat = self.transforms(data['track_feat'])
         det_feat = self.transforms(data['det_feat'])
+
+
         track_tlbr = data['track_tlbr']
         det_tlbr = data['det_tlbr']
         tlwh_history = data['tlwh_history']
@@ -471,6 +474,7 @@ class GhostDataset(Dataset):
         target_delta_bbox[3] /= 608
 
         return track_feat, det_feat, track_tlbr, det_tlbr, tlwh_history, target_delta_bbox
-        
+        # return track_feat, track_tlbr, tlwh_history, target_delta_bbox
+
         # return self.transforms(data['track_feat']), self.transforms(data['det_feat']),\
         #        data['track_tlbr'], data['det_tlbr'], data['tlwh_history'], data['target_delta_bbox']

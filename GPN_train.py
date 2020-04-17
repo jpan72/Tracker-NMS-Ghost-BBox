@@ -47,6 +47,8 @@ def train(
         transforms = T.Compose([
             T.ToPILImage(),
             T.Resize((input_size, input_size)),
+            T.RandomCrop(200),
+            T.Resize((input_size, input_size)),
             T.ToTensor(),
             T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
             ])
@@ -72,6 +74,9 @@ def train(
     # model = Darknet(cfg_dict, dataset.nID)
     gpn = GPN().cuda()
 
+    if opt.resume:
+        gpn.load_state_dict(torch.load(opt.load_path))
+
     # from torch.nn import init
     # for layer_p in gpn._all_weights:
     #     for p in layer_p:
@@ -80,11 +85,11 @@ def train(
     #             init.normal(gpn.__getattr__(p), 0.0, 0.02)
     #             # print(p, a.__getattr__(p))
 
-
-    import torch.nn.init as weight_init
-    for name, param in gpn.named_parameters():
-        if 'weight' in name:
-            weight_init.normal(param);
+    else:
+        import torch.nn.init as weight_init
+        for name, param in gpn.named_parameters():
+            if 'weight' in name:
+                weight_init.normal(param);
 
 
     cutoff = -1  # backbone reaches to cutoff layer
@@ -169,6 +174,7 @@ def train(
         # for i, (imgs, targets, _, _, targets_len) in enumerate(dataloader):
         print(len(dataloader))
         for i, (track_imgs, det_imgs, track_tlbrs, det_tlbrs, tlwh_histories, target_delta_bbox) in enumerate(dataloader):
+        # for i, (track_imgs, track_tlbrs, tlwh_histories, target_delta_bbox) in enumerate(dataloader):
             n_iter = epoch * len(dataloader) + i
 
             if i % 100 == 0:
@@ -207,6 +213,7 @@ def train(
             # components = torch.mean(components.view(-1, 5),dim=0)
 
             delta_bbox = gpn(track_imgs, det_imgs, track_tlbrs, det_tlbrs, tlwh_histories)
+            # delta_bbox = gpn(track_imgs, track_tlbrs,  tlwh_histories)
             loss = smooth_l1_loss(delta_bbox, target_delta_bbox)
 
             # loss = torch.mean(loss)
@@ -300,6 +307,7 @@ def train(
         print()
         print('test delta boxes and target delta boxes:')
         for i, (track_imgs, det_imgs, track_tlbrs, det_tlbrs, tlwh_histories, target_delta_bbox) in enumerate(dataloader_test):
+        # for i, (track_imgs, track_tlbrs,  tlwh_histories, target_delta_bbox) in enumerate(dataloader_test):
 
             track_imgs = track_imgs.cuda().float()
             det_imgs = det_imgs.cuda().float()
@@ -330,15 +338,17 @@ def train(
                 print(target_delta_bbox)
 
         loss_test_mean = loss_test_sum / len(dataloader_test)
-        print(loss_test_mean)
+        # print(loss_test_mean)
         writer.add_scalar('test/loss', loss_test_mean, n_iter)
 
     writer.close()
 
+    torch.save(gpn.state_dict(), opt.save_path)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--epochs', type=int, default=50, help='number of epochs')
+    parser.add_argument('--epochs', type=int, default=200, help='number of epochs')
     parser.add_argument('--batch-size', type=int, default=32, help='size of each image batch')
     parser.add_argument('--accumulated-batches', type=int, default=2, help='number of batches before optimizer step')
     parser.add_argument('--cfg', type=str, default='cfg/yolov3_1088x608.cfg', help='cfg file path')
@@ -351,6 +361,10 @@ if __name__ == '__main__':
     parser.add_argument('--load-image', action='store_true', help='load image instead of features')
     parser.add_argument('--network', type=str, default='alexnet', help='alexnet or resnet')
     parser.add_argument('--optim', type=str, default='sgd', help='optimizer')
+    parser.add_argument('--save-path', type=str, default='model.pth', help='model path')
+    parser.add_argument('--load-path', type=str, default='model.pth', help='path to load model')
+
+
     opt = parser.parse_args()
 
     init_seeds()

@@ -17,11 +17,12 @@ from models import *
 from tracker import matching
 from .basetrack import BaseTrack, TrackState
 
+from torchvision.transforms import transforms as T
 
 class STrack(BaseTrack):
     shared_kalman = KalmanFilter()
 
-    def __init__(self, tlwh, score, temp_feat, buffer_size=30):
+    def __init__(self, tlwh, score, temp_feat, buffer_size=30, img_patch=None):
 
         # wait activate
         self._tlwh = np.asarray(tlwh, dtype=np.float)
@@ -37,6 +38,10 @@ class STrack(BaseTrack):
         self.features = deque([], maxlen=buffer_size)
         self.alpha = 0.9
         self.ghost = False
+        self.tlwh_buffer = deque([], maxlen=buffer_size)
+
+        self.img_patch = img_patch
+        self.buffer_size = buffer_size
     
     def update_features(self, feat):
         feat /= np.linalg.norm(feat)
@@ -99,6 +104,8 @@ class STrack(BaseTrack):
         )
 
         self.update_features(new_track.curr_feat)
+        self.tlwh_buffer = deque([], maxlen=self.buffer_size)
+        self.tlwh_buffer.append(new_track.tlwh)
         self.tracklet_len = 0
         self.state = TrackState.Tracked
         self.is_activated = True
@@ -127,6 +134,8 @@ class STrack(BaseTrack):
         self.score = new_track.score
         if update_feature:
             self.update_features(new_track.curr_feat)
+        self.tlwh_buffer.append(new_track.tlwh)
+        self.img_patch = new_track.img_patch
 
 
     def update_ghost(self, ghost_tlwh, frame_id, update_feature=True, var_multiplier=1):
@@ -149,6 +158,7 @@ class STrack(BaseTrack):
         # self.score = new_track.score
         if update_feature:
             self.update_features(new_track.curr_feat)
+        self.tlwh_buffer.append(ghost_tlwh)
 
 
     def extend(self, frame_id):
@@ -243,14 +253,24 @@ class JDETracker(object):
 
         self.kalman_filter = KalmanFilter()
 
-        self.gpn = GPN().cuda()
         self.loss_reg = nn.SmoothL1Loss().cuda()
         self.loss_conf = nn.MSELoss().cuda()
-        self.optimizer = torch.optim.SGD(filter(lambda x: x.requires_grad, self.gpn.parameters()), lr=opt.lr, momentum=.9)
-        if train:
-            self.gpn.train()
 
-    def update_ghost_track(self, im_blob, img0, opt, evaluator, writer, n_iter):
+        if opt.network == 'alexnet':
+            input_size = 256
+        else:
+            input_size = 224
+
+        self.transforms = T.Compose([
+                T.ToPILImage(),
+                T.Resize((input_size, input_size)),
+                T.RandomCrop(200),
+                T.Resize((input_size, input_size)),
+                T.ToTensor(),
+                T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+                ])
+
+    def update_ghost_track(self, im_blob, img0, opt, gpn):
 
         G = opt.G
         two_stage = opt.two_stage
@@ -271,20 +291,40 @@ class JDETracker(object):
 
             t1 = time.time()
             ''' Step 1: Network forward, get detections & embeddings'''
-            # with torch.no_grad():
-            pred, conv5_out = self.model(im_blob)
-            pred = pred[pred[:, :, 4] > self.opt.conf_thres]
-            if len(pred) > 0:
-                dets = non_max_suppression(pred.unsqueeze(0), self.opt.conf_thres,
-                                           self.opt.nms_thres)[0]
-                scale_coords(self.opt.img_size, dets[:, :4], img0.shape).round()
-                # dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
-                dets, embs = dets[:, :5].cpu().detach().numpy(), dets[:, 6:].cpu().detach().numpy()
-                '''Detections'''
-                detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30) for
-                              (tlbrs, f) in zip(dets, embs)]
-            else:
-                detections = []
+            with torch.no_grad():
+                h0, w0, _ = img0.shape
+                pred, conv5_out = self.model(im_blob)
+                pred = pred[pred[:, :, 4] > self.opt.conf_thres]
+                if len(pred) > 0:
+                    dets = non_max_suppression(pred.unsqueeze(0), self.opt.conf_thres,
+                                               self.opt.nms_thres)[0]
+                    scale_coords(self.opt.img_size, dets[:, :4], img0.shape).round()
+                    # dets, embs = dets[:, :5].cpu().numpy(), dets[:, 6:].cpu().numpy()
+                    dets, embs = dets[:, :5].cpu().detach().numpy(), dets[:, 6:].cpu().detach().numpy()
+
+                    bbox = np.rint(dets[:,:4]).astype(int)
+                    bbox_x, bbox_y, bbox_w, bbox_h = bbox[:,0], bbox[:,1], bbox[:,2], bbox[:,3]
+
+                    bbox_x[bbox_x > w0] = w0
+                    bbox_x[bbox_x < 0] = 0
+                    bbox_y[bbox_y > h0] = h0
+                    bbox_y[bbox_y < 0] = 0
+
+                    h_rs = 224
+                    w_rs = 224
+                    img_patches = []
+                    for x,y,w,h in zip(bbox_x, bbox_y, bbox_w, bbox_h):
+                        tmp = img0[y:y+h, x:x+w, :]
+                        tmp = np.ascontiguousarray(tmp)
+                        import cv2
+                        tmp = cv2.resize(tmp, (h_rs, w_rs))
+                        img_patches.append(tmp)
+
+                    '''Detections'''
+                    detections = [STrack(STrack.tlbr_to_tlwh(tlbrs[:4]), tlbrs[4], f, 30, p) for
+                                  (tlbrs, f, p) in zip(dets, embs, img_patches)]
+                else:
+                    detections = []
 
             ''' Add newly detected tracklets to tracked_stracks'''
             unconfirmed = []
@@ -409,40 +449,12 @@ class JDETracker(object):
         # print('Lost: {}'.format([track.track_id for track in lost_stracks]))
         # print('Removed: {}'.format([track.track_id for track in removed_stracks]))
 
-        ''' Train GPN'''
-
-
-        # Use motmetrics to find FNs
-        # gt_objs = evaluator.gt_frame_dict.get(frame_id+1, [])
-        # ghost_fn_overlap, num_fn_i, fn_closest_ghost_overlap = vis.get_overlap(ghost_tlwhs,
-        #                                                                        acc.mot_events.loc[frame_id],
-        #                                                                        seq, evaluator,
-        #                                                                        frame_id=frame_id)
-        trk_tlwhs = [track.tlwh for track in output_stracks]
-        trk_ids = np.arange(len(trk_tlwhs))
-        acc = evaluator.eval_frame(self.frame_id, trk_tlwhs, trk_ids, rtn_events=True) # self.frame_id will start from 1
 
         # print()
-        print(self.frame_id)
-        # print(evaluator.acc.mot_events)
+        # print(self.frame_id)
 
         if self.frame_id > 1:
 
-            acc_frame = evaluator.acc.mot_events.loc[self.frame_id-1]
-            miss_rows = acc_frame[acc_frame.Type.eq('MISS')]
-            miss_OIds = miss_rows.OId.values
-
-            gt_objs = evaluator.gt_frame_dict.get(self.frame_id-1, [])
-            gt_tlwhs, gt_ids = unzip_objs(gt_objs)[:2]
-
-            FN_tlwhs = []
-            for miss_OId in miss_OIds:
-                try:
-                    FN_tlwhs.append(gt_tlwhs[gt_ids==miss_OId][0])
-                except:
-                    continue
-            # FN_tlwhs = [gt_tlwhs[gt_ids==miss_OId][0] for miss_OId in miss_OIds]
-            FN_tlbrs = [STrack.tlwh_to_tlbr(x) for x in FN_tlwhs]
 
             # Match unmatched tracks with matched dets
             unmatched_tracks = [r_tracked_stracks[it] for it in u_track]
@@ -451,79 +463,78 @@ class JDETracker(object):
             # print(um_det_matches)
             map1 = {}
             for um, det in um_det_matches:
-                map1[um] = det
+                map1[unmatched_tracks[um]] = detections_g[det]
 
-            # Match unmatched tracks with FNs
-            dists = matching.iou_distance([trk.tlbr for trk in unmatched_tracks], FN_tlbrs)
-            um_FN_matches, u_track, u_detection = matching.linear_assignment(dists, thresh=ghost_iou_ths)
+            # Run GPN
 
-            # print(um_FN_matches)
-            map2 = {}
-            for um, FN in um_FN_matches:
-                map2[um] = FN
+            for track, det in map1.items():
 
-            um1 = [x[0] for x in um_det_matches]
-            um2 = [x[0] for x in um_FN_matches]
-            common_ums = list(set(um1) & set(um2))
+                track_img = track.img_patch
+                det_img = det.img_patch
+                track_tlbr = track.tlbr
+                det_tlbr = det.tlbr
+                tlwh_history = track.tlwh_buffer
+                #
+                # track_img = track_img[np.newaxis, :]
+                # det_img = det_img[np.newaxis, :]
+
+                track_img = self.transforms(track_img)
+                det_img = self.transforms(det_img)
+
+                track_tlbr[0] /= 1088
+                track_tlbr[1] /= 608
+                track_tlbr[2] /= 1088
+                track_tlbr[3] /= 608
+
+                det_tlbr[0] /= 1088
+                det_tlbr[1] /= 608
+                det_tlbr[2] /= 1088
+                det_tlbr[3] /= 608
+
+                tlwh_history = np.array(list(tlwh_history))
+                # import pdb; pdb.set_trace()
+                tlwh_history[:,0] /= 1088
+                tlwh_history[:,1] /= 608
+                tlwh_history[:,2] /= 1088
+                tlwh_history[:,3] /= 608
+
+                # track_img = torch.tensor(track_img).cuda().float()
+                # det_img = torch.tensor(det_img).cuda().float()
+                # track_tlbr = torch.tensor(track_tlbr).cuda().float()
+                # det_tlbr = torch.tensor(det_tlbr).cuda().float()
+                # tlwh_history = torch.tensor(tlwh_history).cuda().float()
 
 
-            # Train GPN
-            # Positive samples:
-            #    - Inputs: (for matched track-det pairs) mean and cov of track, track_feat, det_feat
-            #    - Target: mean (tlbr) of FN, conf = 1
-            # Negative samples:
-            #    - Inputs: (for unmatched track and det) mean and cov of track, track_feat, det_feat
-            #    - Target: mean (tlbr) of FN, conf = 0
 
-            for ind_track in common_ums:
-                # print(ind_track)
+                track_img = track_img.cuda().float()
+                det_img = det_img.cuda().float()
 
-                track = r_tracked_stracks[ind_track]
-                ind_det = map1[ind_track]
-                ind_FN = map2[ind_track]
+                track_tlbr = track_tlbr[np.newaxis, :]
+                det_tlbr = det_tlbr[np.newaxis, :]
+                tlwh_history = tlwh_history[np.newaxis, :]
 
-                det = detections_g[ind_det]
-                target_delta_bbox = FN_tlwhs[ind_FN] - track.mean[:4]
-                print(target_delta_bbox)
+                track_tlbr = torch.tensor(track_tlbr).cuda().float()
+                det_tlbr = torch.tensor(det_tlbr).cuda().float()
+                tlwh_history = torch.tensor(tlwh_history).cuda().float()
 
-                track_feat = torch.Tensor(track.smooth_feat).cuda()
-                det_feat = torch.Tensor(det.smooth_feat).cuda()
-                target_delta_bbox = torch.Tensor(target_delta_bbox).cuda()
+                delta_bbox = gpn(track_img.unsqueeze(0), det_img.unsqueeze(0), track_tlbr, det_tlbr, tlwh_history)
+                print()
+                print(track.mean[:4])
+                track.mean[:4] += delta_bbox[0].cpu().detach().numpy()
 
-                delta_bbox = self.gpn(track_feat, det_feat)
-
-                loss_reg = self.loss_reg(delta_bbox, target_delta_bbox)
-
-                # loss_conf = self.loss_conf(conf, target_conf)
-                loss = loss_reg
-                # loss = opt.ld * loss_reg + (1-opt.ld) * loss_conf
-                print(loss)
-
-                loss_val = loss.cpu().detach().numpy()
-                writer.add_scalar('train/loss', loss_val, n_iter)
-                n_iter += 1
-
-                self.optimizer.zero_grad()
-                loss.backward()
-                self.optimizer.step()
-
+                print(track.mean[:4])
 
 
                 # TODO: Train with negative examples
 
-            # except:
-            #     pass
-
-
-
         if opt.ghost_stats:
             return output_stracks, n_iter, last_ghosts, ghost_match_iou
-        return output_stracks, n_iter
+        return output_stracks
 
-    def update(self, im_blob, img0, opt, evaluator, writer, n_iter):
+    def update(self, im_blob, img0, opt, gpn):
 
         if opt.ghost_track:
-            return self.update_ghost_track(im_blob, img0, opt, evaluator, writer, n_iter)
+            return self.update_ghost_track(im_blob, img0, opt, gpn)
         raise ValueError('In GPN branch, should always use ghost_track option')
         return None
 
