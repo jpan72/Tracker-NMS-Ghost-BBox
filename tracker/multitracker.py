@@ -449,12 +449,8 @@ class JDETracker(object):
         # print('Lost: {}'.format([track.track_id for track in lost_stracks]))
         # print('Removed: {}'.format([track.track_id for track in removed_stracks]))
 
-
-        # print()
-        # print(self.frame_id)
-
+        unrefined_bbox = []
         if self.frame_id > 1:
-
 
             # Match unmatched tracks with matched dets
             unmatched_tracks = [r_tracked_stracks[it] for it in u_track]
@@ -474,9 +470,6 @@ class JDETracker(object):
                 track_tlbr = track.tlbr
                 det_tlbr = det.tlbr
                 tlwh_history = track.tlwh_buffer
-                #
-                # track_img = track_img[np.newaxis, :]
-                # det_img = det_img[np.newaxis, :]
 
                 track_img = self.transforms(track_img)
                 det_img = self.transforms(det_img)
@@ -492,34 +485,25 @@ class JDETracker(object):
                 det_tlbr[3] /= 608
 
                 tlwh_history = np.array(list(tlwh_history))
-                # import pdb; pdb.set_trace()
                 tlwh_history[:,0] /= 1088
                 tlwh_history[:,1] /= 608
                 tlwh_history[:,2] /= 1088
                 tlwh_history[:,3] /= 608
 
-                # track_img = torch.tensor(track_img).cuda().float()
-                # det_img = torch.tensor(det_img).cuda().float()
-                # track_tlbr = torch.tensor(track_tlbr).cuda().float()
-                # det_tlbr = torch.tensor(det_tlbr).cuda().float()
-                # tlwh_history = torch.tensor(tlwh_history).cuda().float()
-
-
-
                 track_img = track_img.cuda().float()
                 det_img = det_img.cuda().float()
-
-                track_tlbr = track_tlbr[np.newaxis, :]
-                det_tlbr = det_tlbr[np.newaxis, :]
-                tlwh_history = tlwh_history[np.newaxis, :]
 
                 track_tlbr = torch.tensor(track_tlbr).cuda().float()
                 det_tlbr = torch.tensor(det_tlbr).cuda().float()
                 tlwh_history = torch.tensor(tlwh_history).cuda().float()
 
-                delta_bbox = gpn(track_img.unsqueeze(0), det_img.unsqueeze(0), track_tlbr, det_tlbr, tlwh_history)
+                delta_bbox = gpn(track_img.unsqueeze(0), det_img.unsqueeze(0),
+                                 track_tlbr.unsqueeze(0), det_tlbr.unsqueeze(0),
+                                 tlwh_history.unsqueeze(0))
                 print()
                 print(track.mean[:4])
+
+                unrefined_bbox.append(track.mean[:4])
                 track.mean[:4] += delta_bbox[0].cpu().detach().numpy()
 
                 print(track.mean[:4])
@@ -529,6 +513,8 @@ class JDETracker(object):
 
         if opt.ghost_stats:
             return output_stracks, n_iter, last_ghosts, ghost_match_iou
+        elif opt.vis_unrefined:
+            return output_stracks, unrefined_bbox
         return output_stracks
 
     def update(self, im_blob, img0, opt, gpn):

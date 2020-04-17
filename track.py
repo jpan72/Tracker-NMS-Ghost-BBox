@@ -70,6 +70,8 @@ def eval_seq(opt, gpn, dataloader, data_type, result_filename, save_dir=None, sh
             ghost_sequence.append((ghost_tlwhs, frame_id))
             ghost_match_ious.extend(ghost_match_iou)
 
+        elif opt.vis_unrefined:
+            online_targets, unrefined_bbox = tracker.update(blob, img0, opt, gpn)
         else:
             online_targets = tracker.update(blob, img0, opt, gpn)
 
@@ -99,11 +101,14 @@ def eval_seq(opt, gpn, dataloader, data_type, result_filename, save_dir=None, sh
         if opt.save_debug or opt.count_fn:
             plot_arguments.append((img0, online_tlwhs, online_ids, frame_id, 1./timer.average_time))
 
+        if opt.vis_unrefined:
+            plot_arguments.append((img0, online_tlwhs, online_ids, frame_id, 1./timer.average_time, unrefined_bbox))
+
         frame_id += 1
 
     # save results
     write_results(result_filename, results, data_type, opt.dataset)
-    if opt.save_debug or opt.count_fn:
+    if opt.save_debug or opt.count_fn or opt.vis_unrefined:
         return frame_id, timer.average_time, timer.calls, plot_arguments
     if opt.ghost_stats:
         return frame_id, timer.average_time, timer.calls, ghost_sequence, ghost_match_ious
@@ -160,7 +165,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
         except:
             frame_rate = 30
 
-        if opt.save_debug or opt.count_fn:
+        if opt.save_debug or opt.count_fn or opt.vis_unrefined:
             nf, ta, tc, plot_arguments = eval_seq(opt, dataloader, data_type, result_filename,
                                 save_dir=output_dir, show_image=show_image, frame_rate=frame_rate)
         if opt.ghost_stats:
@@ -178,6 +183,32 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
         evaluator = Evaluator(data_root, seq, data_type)
         acc = evaluator.eval_file(result_filename)
         accs.append(acc)
+
+        if opt.vis_unrefined:
+
+            UR_dir = os.path.join(opt.UR_images, opt.dataset)
+            if not osp.exists(UR_dir):
+                os.makedirs(UR_dir)
+
+            for img0, online_tlwhs, online_ids, frame_id, fps, unrefined_boxes in plot_arguments:
+                try:
+                    UR_im = vis.plot_UR(img0, online_tlwhs, online_ids, acc.mot_events.loc[frame_id], seq,
+                                             evaluator,
+                                             frame_id=frame_id, fps=fps, unrefined_boxes=unrefined_boxes)
+
+                    cv2.imwrite(os.path.join(UR_dir, '{:05d}.jpg'.format(frame_id)), UR_im)
+
+                except:
+                    cv2.imwrite(os.path.join(UR_dir, '{:05d}.jpg'.format(frame_id)), img0)
+
+            UR_video_folder = osp.join(opt.UR_videos, opt.dataset)
+            if not osp.exists(UR_video_folder):
+                os.makedirs(UR_video_folder)
+            UR_video_path = osp.join(UR_video_folder, '{}_FN.mp4'.format(seq))
+
+            cmd_str = 'ffmpeg -y -f image2 -i {}/%05d.jpg -c:v copy {}'.format(UR_dir, UR_video_path)
+            os.system(cmd_str)
+            os.system("rm -R {}".format(UR_dir))
 
         if save_videos:
             output_video_folder = osp.join(opt.output_videos, opt.dataset)
@@ -339,6 +370,8 @@ if __name__ == '__main__':
     parser.add_argument('--N', type=int, default=1, help='number of ghost track copies for each unmatched track')
     parser.add_argument('--load-path', type=str, default='model.pth', help='path to load model')
     parser.add_argument('--network', type=str, default='alexnet', help='alexnet or resnet')
+    parser.add_argument('--UR-images', type=str, default='../exp/UR_images', help='path to unrefined boxes visualization')
+    parser.add_argument('--UR-videos', type=str, default='../exp/UR_videos', help='path to unrefined boxes visualization')
 
     # parser.add_argument('--test-mot17', action='store_true', help='tracking buffer')
     parser.add_argument('--save-images', action='store_true', help='save tracking results (image)')
@@ -356,6 +389,7 @@ if __name__ == '__main__':
     parser.add_argument('--ghost-stats', action='store_true', help='get IoU statistics between all proposed ghosts and FNs')
     parser.add_argument('--save-lt', action='store_true', help='use ghost only for reactivate lost tracks; for each lost track, see if there is a ghost where IoU > threshold')
     parser.add_argument('--ghost-track', action='store_true', help='use ghost track instead ghost detection')
+    parser.add_argument('--vis_unrefined', action='store_true', help='visualize unrefined ghost boxes')
 
     opt = parser.parse_args()
     print(opt, end='\n\n')
@@ -400,16 +434,14 @@ if __name__ == '__main__':
         data_root = '/hdd/yongxinw/2DMOT2015/train/'
 
     elif opt.dataset == 'mot15_train_unique':
-        # seqs_str = '''ADL-Rundle-6
-        #               ADL-Rundle-8
-        #               KITTI-13
-        #               KITTI-17
-        #               PETS09-S2L1
-        #               TUD-Campus
-        #               TUD-Stadtmitte
-        #               Venice-2
-        #             '''
-        seqs_str = '''ADL-Rundle-8
+        seqs_str = '''ADL-Rundle-6
+                      ADL-Rundle-8
+                      KITTI-13
+                      KITTI-17
+                      PETS09-S2L1
+                      TUD-Campus
+                      TUD-Stadtmitte
+                      Venice-2
                     '''
         data_root = '/hdd/yongxinw/2DMOT2015/train/'
 
