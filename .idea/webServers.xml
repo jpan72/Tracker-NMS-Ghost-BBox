@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="f164b89e-3392-4375-a6ca-a54fdfa9e449" name="klab-cube2.ri.cmu.edu">
+        <fileTransfer accessType="SFTP" host="klab-cube2.ri.cmu.edu" port="22" sshConfigId="6380f4fd-5067-488b-8e6d-13d0c3c22219" sshConfig="klab-cube2.ri.cmu.edu">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

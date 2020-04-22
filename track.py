@@ -140,7 +140,7 @@ def main(opt, data_root='/data/MOT16/train', det_root=None, seqs=('MOT16-05',), 
         fig, axs = plt.subplots(2, 4, sharey=True, tight_layout=True)
 
     # initialize GRN and load trained weights
-    gpn = GPN().cuda()
+    gpn = GPN(network=opt.network).cuda()
     gpn.eval()
     gpn.load_state_dict(torch.load(opt.load_path))
 
@@ -447,7 +447,6 @@ if __name__ == '__main__':
                       TUD-Stadtmitte
                       Venice-2
                     '''
-        seqs_str = "ADL-Rundle-8"
         data_root = '/hdd/yongxinw/2DMOT2015/train/'
 
     elif opt.dataset == 'mot15_train_useful':

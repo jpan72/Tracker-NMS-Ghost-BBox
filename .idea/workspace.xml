@@ -1,15 +1,35 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
+  <component name="BranchesTreeState">
+    <expand>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="LOCAL_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+      <path>
+        <item name="ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="REMOTE_ROOT" type="e8cecc67:BranchNodeDescriptor" />
+        <item name="GROUP_NODE:origin" type="e8cecc67:BranchNodeDescriptor" />
+      </path>
+    </expand>
+    <select />
+  </component>
   <component name="ChangeListManager">
     <list default="true" id="e1771156-923e-40ef-8431-6f3d133ceaed" name="Default Changelist" comment="">
+      <change afterPath="$PROJECT_DIR$/.idea/sshConfigs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/.idea/webServers.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/Tracker-NMS-Ghost-BBox.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Tracker-NMS-Ghost-BBox.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/deployment.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/deployment.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/GPN_preprocess.py" beforeDir="false" afterPath="$PROJECT_DIR$/GPN_preprocess.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/GPN_train.py" beforeDir="false" afterPath="$PROJECT_DIR$/GPN_train.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/models.py" beforeDir="false" afterPath="$PROJECT_DIR$/models.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/track.py" beforeDir="false" afterPath="$PROJECT_DIR$/track.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tracker/multitracker.py" beforeDir="false" afterPath="$PROJECT_DIR$/tracker/multitracker.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/tracker/preprocess_multitracker.py" beforeDir="false" afterPath="$PROJECT_DIR$/tracker/preprocess_multitracker.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/visualization.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/utils/resnet.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/resnet.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -25,26 +45,19 @@
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
     <option name="UPDATE_TYPE" value="REBASE" />
   </component>
-  <component name="IgnoredFileRootStore">
-    <option name="generatedRoots">
-      <set>
-        <option value="$PROJECT_DIR$/.idea" />
-      </set>
-    </option>
-  </component>
   <component name="ProjectId" id="1Ye2cIDpz7ybNvLacrQm0s0estU" />
   <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectViewState">
     <option name="hideEmptyMiddlePackages" value="true" />
-    <option name="showExcludedFiles" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
   <component name="PropertiesComponent">
+    <property name="RunOnceActivity.OpenProjectViewOnStart" value="true" />
     <property name="RunOnceActivity.ShowReadmeOnStart" value="true" />
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="true" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
-    <property name="settings.editor.selected.configurable" value="editor.preferences.fonts.default" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
   </component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
@@ -68,6 +81,7 @@
       <workItem from="1584320549955" duration="13557000" />
       <workItem from="1584406226135" duration="42575000" />
       <workItem from="1585097542694" duration="22788000" />
+      <workItem from="1587441722153" duration="3842000" />
     </task>
     <task id="LOCAL-00001" summary="Remove small objects for MOT15 (height&lt;59px)">
       <created>1583389560724</created>
@@ -171,7 +185,19 @@
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
-    <option name="version" value="1" />
+    <option name="version" value="2" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+    <option name="oldMeFiltersMigrated" value="true" />
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="Remove small objects for MOT15 (height&lt;59px)" />
@@ -197,6 +223,10 @@
       <screen x="-285" y="-1057" width="1920" height="1057" />
     </state>
     <state x="487" y="-892" key="#Options/0.23.1280.720/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583383578336" />
+    <state x="544" y="223" key="#SSH_Configurations" timestamp="1587326421163">
+      <screen x="0" y="23" width="1748" height="1097" />
+    </state>
+    <state x="544" y="223" key="#SSH_Configurations/0.23.1748.1097@0.23.1748.1097" timestamp="1587326421163" />
     <state x="509" y="-875" width="777" height="636" key="#com.intellij.openapi.keymap.impl.ui.EditKeymapsDialog" timestamp="1583710700598">
       <screen x="-285" y="-1057" width="1920" height="1057" />
     </state>
@@ -227,14 +257,15 @@
       <screen x="-286" y="-1057" width="1920" height="1001" />
     </state>
     <state x="602" y="-806" key="MultipleFileMergeDialog/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583289581174" />
-    <state x="-268" y="-890" key="SettingsEditor" timestamp="1585441714513">
-      <screen x="-949" y="-1057" width="1920" height="1057" />
+    <state x="620" y="196" key="SettingsEditor" timestamp="1587326491868">
+      <screen x="0" y="23" width="1748" height="1097" />
     </state>
     <state x="-268" y="-890" key="SettingsEditor/0.23.1245.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1585441714513" />
     <state x="-268" y="-890" key="SettingsEditor/0.23.1249.777/-949.-1057.1920.1057@-949.-1057.1920.1057" timestamp="1584502917856" />
     <state x="396" y="-890" key="SettingsEditor/0.23.1280.721/-285.-1057.1920.1057@-285.-1057.1920.1057" timestamp="1583297283473" />
     <state x="395" y="-890" key="SettingsEditor/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583288958933" />
     <state x="395" y="-899" key="SettingsEditor/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583290816251" />
+    <state x="620" y="196" key="SettingsEditor/0.23.1748.1097@0.23.1748.1097" timestamp="1587326491868" />
     <state x="515" y="204" key="Vcs.Push.Dialog.v2" timestamp="1587091379455">
       <screen x="0" y="0" width="1440" height="900" />
     </state>
@@ -259,15 +290,20 @@
       <screen x="-286" y="-1057" width="1920" height="1057" />
     </state>
     <state x="691" y="-605" key="com.intellij.openapi.vcs.update.UpdateOrStatusOptionsDialogupdate-v2/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583289399040" />
-    <state x="793" y="-792" key="ftp.server.browser" timestamp="1583288913130">
-      <screen x="-286" y="-1057" width="1920" height="1057" />
+    <state x="982" y="298" width="765" height="525" key="ftp.server.browser" timestamp="1587326281732">
+      <screen x="0" y="23" width="1748" height="1097" />
     </state>
     <state x="793" y="-792" key="ftp.server.browser/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583288913130" />
+    <state x="982" y="298" width="765" height="525" key="ftp.server.browser/0.23.1748.1097@0.23.1748.1097" timestamp="1587326281732" />
     <state x="646" y="-822" key="git4idea.branch.GitSmartOperationDialog" timestamp="1583289568082">
       <screen x="-286" y="-1057" width="1920" height="1001" />
     </state>
     <state x="646" y="-809" key="git4idea.branch.GitSmartOperationDialog/0.23.1280.721/-286.-1057.1920.1057@-286.-1057.1920.1057" timestamp="1583289507837" />
     <state x="646" y="-822" key="git4idea.branch.GitSmartOperationDialog/0.23.1280.777/-286.-1057.1920.1001@-286.-1057.1920.1001" timestamp="1583289568082" />
+    <state x="990" y="456" key="publish.login" timestamp="1587326395505">
+      <screen x="0" y="23" width="1748" height="1097" />
+    </state>
+    <state x="990" y="456" key="publish.login/0.23.1748.1097@0.23.1748.1097" timestamp="1587326395505" />
     <state x="672" y="200" width="776" height="577" key="search.everywhere.popup" timestamp="1586469259360">
       <screen x="0" y="0" width="1440" height="900" />
     </state>

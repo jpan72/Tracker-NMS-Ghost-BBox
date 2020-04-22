@@ -39,21 +39,20 @@ def train(
     img_size = [int(cfg_dict[0]['width']), int(cfg_dict[0]['height'])]
 
     # Get dataloader
-    if opt.load_image:
-        if opt.network == 'alexnet':
-            input_size = 256
-        else:
-            input_size = 224
-        transforms = T.Compose([
-            T.ToPILImage(),
-            T.Resize((input_size, input_size)),
-            T.RandomCrop(200),
-            T.Resize((input_size, input_size)),
-            T.ToTensor(),
-            T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
-            ])
+
+    if opt.network == 'alexnet':
+        input_size = 256
     else:
-        transforms = T.Compose([T.ToTensor()])
+        input_size = 224
+    transforms = T.Compose([
+        T.ToPILImage(),
+        T.Resize((input_size, input_size)),
+        T.RandomCrop(200),
+        T.Resize((input_size, input_size)),
+        T.ToTensor(),
+        T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+        ])
+
     # dataset = JointDataset(dataset_root, trainset_paths, img_size, augment=True, transforms=transforms)
 
     # dataset_root = '../preprocess-ghost-bbox-HA0.3/MOT17/MOT17/train'
@@ -72,7 +71,7 @@ def train(
 
     # Initialize model
     # model = Darknet(cfg_dict, dataset.nID)
-    gpn = GPN().cuda()
+    gpn = GPN(network=opt.network).cuda()
 
     if opt.resume:
         gpn.load_state_dict(torch.load(opt.load_path))
@@ -217,7 +216,6 @@ def train(
             loss = smooth_l1_loss(delta_bbox, target_delta_bbox)
 
             # loss = torch.mean(loss)
-            # import pdb; pdb.set_trace()
             loss.backward()
             # print(loss)
             writer.add_scalar('train/loss', loss.cpu().detach().numpy(), n_iter)
@@ -256,8 +254,11 @@ def train(
                 delta_bbox[:,3] *= 608
 
                 print()
+                print('delta bbox and target')
                 print(delta_bbox)
                 print(target_delta_bbox)
+                print(loss)
+                # import pdb; pdb.set_trace()
 
         # # Save latest checkpoint
         # checkpoint = {'epoch': epoch,
@@ -305,7 +306,7 @@ def train(
         loss_test_sum = 0
 
         print()
-        print('test delta boxes and target delta boxes:')
+        print('========= test delta boxes and target delta boxes:==========')
         for i, (track_imgs, det_imgs, track_tlbrs, det_tlbrs, tlwh_histories, target_delta_bbox) in enumerate(dataloader_test):
         # for i, (track_imgs, track_tlbrs,  tlwh_histories, target_delta_bbox) in enumerate(dataloader_test):
 
@@ -322,7 +323,7 @@ def train(
             loss_test_sum += loss.cpu().detach().numpy()
 
 
-            if i%100 == 0:
+            if i % 100 == 0:
                 target_delta_bbox[:,0] *= 1088
                 target_delta_bbox[:,1] *= 608
                 target_delta_bbox[:,2] *= 1088
@@ -334,8 +335,10 @@ def train(
                 delta_bbox[:,3] *= 608
 
                 print()
+                print('delta and target')
                 print(delta_bbox)
                 print(target_delta_bbox)
+                print(loss)
 
         loss_test_mean = loss_test_sum / len(dataloader_test)
         # print(loss_test_mean)
@@ -358,7 +361,6 @@ if __name__ == '__main__':
     parser.add_argument('--test-interval', type=int, default=9, help='test interval')
     parser.add_argument('--lr', type=float, default=1e-2, help='init lr')
     parser.add_argument('--unfreeze-bn', action='store_true', help='unfreeze bn')
-    parser.add_argument('--load-image', action='store_true', help='load image instead of features')
     parser.add_argument('--network', type=str, default='alexnet', help='alexnet or resnet')
     parser.add_argument('--optim', type=str, default='sgd', help='optimizer')
     parser.add_argument('--save-path', type=str, default='model.pth', help='model path')
